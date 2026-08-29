@@ -15,7 +15,11 @@ function vPath(){
           '<h2>'+esc(sec.u.t)+'</h2>'+
           '<p>'+esc(sec.u.sub)+'</p>'+
         '</div>'+
-        '<div class="unit-prog"><b>'+pr.done+'/'+pr.total+'</b><span>уроков</span></div>'+
+        '<div class="unit-side">'+
+          (BOOK[sec.u.id] ? '<button class="book-btn" data-bookopen="'+sec.u.id+'" '+
+             'aria-label="Материалы раздела" title="Материалы раздела">'+ICON.book+'<span>Материалы</span></button>' : '')+
+          '<div class="unit-prog"><b>'+pr.done+'/'+pr.total+'</b><span>уроков</span></div>'+
+        '</div>'+
       '</div>';
     if(!locked) h += '<p class="unit-greet">'+esc(sec.u.greet)+'</p>';
     h += '<ol class="path">';

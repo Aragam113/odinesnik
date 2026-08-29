@@ -187,6 +187,7 @@ function render(){
   main.classList.remove("hidden"); hud.classList.remove("hidden"); tabs.classList.remove("hidden");
   var v = $("#view");
   v.innerHTML = screen === "path" ? vPath()
+              : screen === "book" ? vBook()
               : screen === "practice" ? vPractice()
               : screen === "ivhome" ? vIvHome()
               : screen === "ref" ? vRef() : vStats();
@@ -196,7 +197,7 @@ function render(){
 
 /* ---------- СОБЫТИЯ ---------- */
 document.addEventListener("click", function(e){
-  var t = e.target.closest("button, a");
+  var t = e.target.closest("button, a, [data-dianode]");
   if(!t) return;
   var A = function(n){ return t.getAttribute(n); };
 
@@ -243,6 +244,32 @@ document.addEventListener("click", function(e){
   var ub = A("data-unbuild");
   if(ub !== null && ub !== undefined && !LS.checked){ LS.built.splice(+ub, 1); render(); return; }
 
+  /* ---- материалы раздела ---- */
+  if(A("data-bookopen")){
+    bookUnit = A("data-bookopen"); bookNode = null; screen = "book";
+    render();
+    var mb = $("#main"); if(mb) mb.scrollTop = 0;
+    try{ window.scrollTo(0, 0); }catch(e){}
+    return;
+  }
+  if(A("data-bookclose")){ screen = "path"; bookUnit = null; bookNode = null; render(); return; }
+  if(A("data-dianode")){
+    bookNode = bookNode === A("data-dianode") ? null : A("data-dianode");
+    render(); return;
+  }
+  if(A("data-bookcheck") !== null && A("data-bookcheck") !== undefined){
+    var bc = BOOK[bookUnit].check, bp = +A("data-bookcheck");
+    if(!S.bookChecked) S.bookChecked = {};
+    S.bookChecked[bookUnit] = {pick: bp, ok: bp === bc.a};
+    if(bp === bc.a) addXP(5);
+    SFX[bp === bc.a ? "correct" : "wrong"]();
+    save(); render(); return;
+  }
+  if(A("data-bookref")){
+    var rid = A("data-bookref");
+    screen = "ref"; refTab = rid.charAt(0) === "a" ? "arch" : "hood"; openRef = rid;
+    render(); return;
+  }
   if(A("data-open")){ openRef = openRef === A("data-open") ? "" : A("data-open"); render(); return; }
   if(A("data-ref")){ refTab = A("data-ref"); openRef = ""; render(); return; }
   if(A("data-road")){ var k = A("data-road"); S.road[k] = !S.road[k]; save(); render(); return; }
@@ -269,6 +296,14 @@ document.addEventListener("click", function(e){
 
 document.addEventListener("keydown", function(e){
   if(e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+  /* узлы схемы — это <g> с role="button": пробел и ввод должны их открывать */
+  if((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest("[data-dianode]")){
+    e.preventDefault();
+    e.target.closest("[data-dianode]").dispatchEvent(new MouseEvent("click", {bubbles:true}));
+    return;
+  }
+
   if(screen !== "lesson" || !LS) return;
   var ex = currentEx(); if(!ex) return;
   if(e.key === "Enter"){

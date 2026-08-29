@@ -375,3 +375,65 @@ pre.code{
 .fb-mascot{width:60px; height:60px; flex:none}
 .fb-mascot svg{width:100%; height:100%}
 @media (max-width:560px){.fb-mascot{width:50px; height:50px}}
+
+/* ==========================================================
+   МАТЕРИАЛЫ РАЗДЕЛА («книжечка»)
+   ========================================================== */
+.unit-side{display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex:none}
+.book-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.16); color:inherit;
+  border:2px solid rgba(255,255,255,.34); border-radius:12px;
+  padding:7px 11px; font:800 13px/1 inherit; cursor:pointer;
+  box-shadow:0 3px 0 rgba(0,0,0,.18); transition:filter .12s, transform .06s;
+}
+.book-btn svg{width:18px; height:18px; flex:none}
+.book-btn:hover{filter:brightness(1.12)}
+.book-btn:active{transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.18)}
+@media (max-width:560px){.book-btn span{display:none} .book-btn{padding:8px}}
+
+.book{display:flex; flex-direction:column; gap:14px}
+.book-head h2{font-size:24px; line-height:1.15; margin:4px 0 2px}
+.book-head p{color:var(--ink-2); font-weight:600}
+.book .card h3{font-size:17px; margin:0 0 8px}
+.book .card p{color:var(--ink-2); line-height:1.55}
+.book .card li{color:var(--ink-2); line-height:1.55; margin-bottom:4px}
+.analogy{border-left:6px solid var(--u, var(--brand))}
+.analogy p{color:var(--ink); font-size:15px}
+
+/* --- интерактивная схема --- */
+.dia-hint{font-size:13px; color:var(--ink-3); margin-bottom:8px}
+.dia-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+.dia{display:block; width:100%; min-width:520px; height:auto; color:var(--ink-3)}
+.dia-link{stroke:var(--line-2); stroke-width:2}
+.dia-lt{fill:var(--ink-3); font-size:11px; font-weight:700}
+.dia-node{cursor:pointer}
+.dia-node rect{fill:var(--panel-2); stroke:var(--line-2); stroke-width:2; transition:fill .12s, stroke .12s}
+.dia-node .dia-t{fill:var(--ink); font-size:13px; font-weight:800}
+.dia-node .dia-s{fill:var(--ink-3); font-size:11px; font-weight:600}
+.dia-node:hover rect{stroke:var(--ink-3)}
+.dia-node:focus-visible rect{stroke:var(--info); stroke-width:3}
+.dia-node.k-brand rect{fill:color-mix(in srgb, var(--brand) 18%, var(--panel)); stroke:var(--brand-lip)}
+.dia-node.k-info  rect{fill:var(--info-soft); stroke:var(--info-line)}
+.dia-node.k-ok    rect{fill:var(--ok-soft);   stroke:var(--ok-line)}
+.dia-node.k-warn  rect{fill:var(--no-soft);   stroke:var(--no-line)}
+.dia-node.on rect{stroke-width:3; stroke:var(--u, var(--brand))}
+.dia-say{
+  margin-top:10px; padding:12px 14px; border-radius:var(--r-sm);
+  background:var(--panel-2); border:2px solid var(--line);
+  min-height:64px; font-size:14px; line-height:1.55;
+}
+.dia-say.on{border-color:var(--u, var(--brand))}
+.dia-say b{display:block; margin-bottom:4px; color:var(--ink)}
+.dia-say p{margin:0; color:var(--ink-2)}
+.dia-say .muted{color:var(--ink-3)}
+.dia-say code, .book code{
+  background:var(--panel-3); border-radius:6px; padding:1px 5px;
+  font:600 13px/1.4 "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* --- проверка понимания --- */
+.check-box .check-opts{display:flex; flex-direction:column; gap:8px; margin-top:10px}
+.check-box .opt{width:100%; text-align:left}
+.book .src ul{margin:0; padding-left:18px}
+.book .src li{font-size:13px; color:var(--ink-3)}
