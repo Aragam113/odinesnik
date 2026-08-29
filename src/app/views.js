@@ -122,7 +122,7 @@ function vLesson(){
         '<div class="fb-row">'+
           '<div class="fb-mascot">'+MASCOT.render(mc, {mood:mm, frame:"head", label:"реакция"})+'</div>'+
           '<div class="fb-txt"><b>'+(LS.correct ? praise() : (e.type==="recall" ? "Эталонный ответ" : "Не так")) +'</b>'+
-          '<span>'+esc(e.w)+'</span></div>'+
+          '<span>'+(LS.buildHint ? '<b>'+esc(LS.buildHint)+'</b> ' : '')+esc(e.w)+'</span></div>'+
         '</div>'+
         '<button class="btn '+(LS.correct?"ok":"no")+'" data-next="1">Дальше</button>'+
       '</div></div>';
@@ -147,7 +147,7 @@ function vLesson(){
 }
 function exLabel(e){
   return e.type === "match" ? "Сопоставь пары"
-       : e.type === "build" ? "Собери из блоков"
+       : e.type === "build" ? (e.set ? "Собери набор · порядок не важен" : "Собери по порядку")
        : e.type === "recall" ? "Расскажи вслух"
        : e.code ? "Разбери код" : "Выбери ответ";
 }

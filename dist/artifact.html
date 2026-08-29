@@ -230,14 +230,16 @@ pre.code{
 .opt:disabled{cursor:default}
 
 /* сопоставление пар */
-.match{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
-.match-col{display:flex; flex-direction:column; gap:10px}
+.match{display:grid; grid-template-columns:1fr 1fr; gap:9px; align-items:start}
+.match-col{display:flex; flex-direction:column; gap:9px; min-width:0}
 .chip{
-  padding:12px 13px; border-radius:var(--r-sm); border:2px solid var(--line); border-bottom-width:4px;
-  background:var(--panel); font-size:13px; font-weight:700; text-align:left; line-height:1.3;
-  display:flex; align-items:center;
+  padding:11px 12px; border-radius:var(--r-sm); border:2px solid var(--line); border-bottom-width:4px;
+  background:var(--panel); font-size:12.5px; font-weight:700; text-align:left; line-height:1.32;
+  display:flex; align-items:center; min-height:60px;
+  overflow-wrap:anywhere; hyphens:auto;      /* длинные термины переносятся, а не вылезают */
   transition:background .12s, border-color .12s, opacity .2s;
 }
+@media (max-width:420px){.chip{font-size:11.5px; padding:9px 10px; min-height:54px}}
 .chip.sel{background:var(--info-soft); border-color:var(--info)}
 .chip.matched{opacity:.34; border-color:var(--ok); background:var(--ok-soft)}
 .chip.miss{animation:shake .4s ease-in-out}
@@ -253,8 +255,10 @@ pre.code{
 .tok{
   padding:8px 12px; border-radius:10px; border:2px solid var(--line); border-bottom-width:4px;
   background:var(--panel); font-family:"JetBrains Mono",monospace; font-size:12.5px; font-weight:500;
+  max-width:100%; overflow-wrap:anywhere; text-align:left;
   transition:transform .1s, background .12s;
 }
+@media (max-width:420px){.tok{font-size:11.5px; padding:7px 10px}}
 .tok:active:not(:disabled){transform:translateY(2px); border-bottom-width:2px; margin-bottom:2px}
 @media (hover:hover){.tok:hover:not(:disabled){background:var(--panel-2)}}
 .tok.in{background:var(--info-soft); border-color:var(--info-line)}
@@ -2199,6 +2203,7 @@ const BUILD = [
  w:"Запрос доступен только на сервере. Директива без контекста означает, что данные формы на сервер не поедут — самый дешёвый вид серверного вызова."},
 
 {g:"нагрузка",task:"Собери правильный порядок действий при проведении документа",
+ set:false,
  tokens:["Блокировка = Новый БлокировкаДанных;","Блокировка.Заблокировать();","// читаем остатки","// проверяем достаточность","Движения.Записать();"],
  extra:["// читаем остатки до блокировки"],
  w:"Порядок обязателен: заблокировать → прочитать → проверить → записать. Если прочитать остатки до блокировки, два параллельных документа спишут одну и ту же единицу товара."},
@@ -2218,7 +2223,8 @@ const BUILD = [
  extra:["&Вместо(\"ОбработкаПроведения\")","ПродолжитьВызов("],
  w:"&После добавляет код после типового метода — типовая логика отработает. &Вместо подменяет метод целиком, и штатные проверки просто не выполнятся."},
 
-{g:"данные",task:"Собери описание регистра остатков товаров",
+{g:"данные",task:"Каким должен быть регистр остатков товаров? Собери описание",
+ set:true,                                   /* набор свойств: порядок не важен */
  tokens:["Регистр накопления","вид: Остатки","измерение: Номенклатура","измерение: Склад","ресурс: Количество"],
  extra:["ресурс: Склад","измерение: Количество","реквизит: Номенклатура"],
  w:"В разрезе ЧЕГО (измерения: Номенклатура, Склад) храним СКОЛЬКО (ресурс: Количество). Перепутать измерение и ресурс — классическая ошибка на собеседовании."}
@@ -2595,7 +2601,13 @@ function hl(code){
 function seed(s){ var h = 2166136261; for(var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return function(){ h += 0x6D2B79F5; var t = h; t = Math.imul(t ^ t>>>15, t|1); t ^= t + Math.imul(t ^ t>>>7, t|61); return ((t ^ t>>>14)>>>0)/4294967296; }; }
 function shuffle(a, rnd){ a = a.slice(); for(var i=a.length-1;i>0;i--){ var j = Math.floor((rnd?rnd():Math.random())*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 function pick(arr, n, rnd){ return shuffle(arr, rnd).slice(0, n); }
-function clip(s, n){ return s.length > n ? s.slice(0, n).replace(/[\s,.;:—-]+$/,"") + "…" : s; }
+function clip(s, n){
+  if(s.length <= n) return s;
+  var cut = s.slice(0, n);
+  var sp = cut.lastIndexOf(" ");
+  if(sp > n * 0.55) cut = cut.slice(0, sp);        /* режем по границе слова, а не посреди */
+  return cut.replace(/[\s,.;:—–-]+$/, "") + "…";
+}
 
 /* дистракторы: сначала из той же группы, потом из любых */
 function others(card, pool, n, rnd){
@@ -2643,13 +2655,14 @@ function genMatch(cards, rnd){
   var four = cards.slice(0, 4);
   return {k:"m|"+four.map(function(c){return c.t;}).join("|"), type:"match",
     q:"Собери пары: термин и его значение",
-    pairs: four.map(function(c){ return {l:c.t, r:clip(c.d, 46)}; }),
+    pairs: four.map(function(c){ return {l:c.t, r:clip(c.d, 52)}; }),
     w:"Пары: " + four.map(function(c){ return c.t + " — " + clip(c.d, 60); }).join(" · ")};
 }
 
 /* --- сборка запроса из блоков --- */
 function genBuild(b){
-  return {k:"b|"+b.task, type:"build", q:b.task, tokens:b.tokens, extra:b.extra||[], w:b.w};
+  return {k:"b|"+b.task, type:"build", q:b.task, tokens:b.tokens, extra:b.extra||[],
+          set:!!b.set, w:b.w};
 }
 
 /* --- готовые задачи и фразы --- */
@@ -2967,7 +2980,14 @@ function checkAnswer(){
   var e = currentEx(); if(!e || LS.checked) return;
   var ok = false;
   if(e.type === "choose") ok = LS.pick !== null && e.o[LS.pick] && !!e.o[LS.pick].c;
-  else if(e.type === "build") ok = LS.built.join(" ") === e.tokens.join(" ");
+  else if(e.type === "build"){
+    var sortJoin = function(a){ return a.slice().sort().join(""); };
+    var sameSet = sortJoin(LS.built) === sortJoin(e.tokens);
+    ok = e.set ? sameSet : LS.built.join(" ") === e.tokens.join(" ");
+    /* подсказка по существу: состав верный, но порядок другой */
+    LS.buildHint = (!ok && sameSet) ? "Блоки выбраны верно, но порядок другой." :
+                   (!ok && LS.built.length !== e.tokens.length) ? "Блоков должно быть " + e.tokens.length + "." : "";
+  }
   else if(e.type === "match") ok = Object.keys(LS.matched).length === e.pairs.length*2;
   else if(e.type === "recall") ok = LS.pick === 1;
 
@@ -3009,7 +3029,7 @@ function nextEx(){
   if(!LS.correct && e.type !== "recall" && back < 2){ LS.requeued[e.k] = back + 1; LS.queue.push(e); }
   else LS.done++;
   LS.pick = null; LS.checked = false; LS.correct = false;
-  LS.matched = {}; LS.matchPick = null; LS.built = [];
+  LS.matched = {}; LS.matchPick = null; LS.built = []; LS.buildHint = "";
   if(!S.noHearts && hearts() === 0){ screen = "failed"; render(); return; }
   if(!LS.queue.length){ finishLesson(); return; }
   render();
@@ -3178,7 +3198,7 @@ function vLesson(){
         '<div class="fb-row">'+
           '<div class="fb-mascot">'+MASCOT.render(mc, {mood:mm, frame:"head", label:"реакция"})+'</div>'+
           '<div class="fb-txt"><b>'+(LS.correct ? praise() : (e.type==="recall" ? "Эталонный ответ" : "Не так")) +'</b>'+
-          '<span>'+esc(e.w)+'</span></div>'+
+          '<span>'+(LS.buildHint ? '<b>'+esc(LS.buildHint)+'</b> ' : '')+esc(e.w)+'</span></div>'+
         '</div>'+
         '<button class="btn '+(LS.correct?"ok":"no")+'" data-next="1">Дальше</button>'+
       '</div></div>';
@@ -3203,7 +3223,7 @@ function vLesson(){
 }
 function exLabel(e){
   return e.type === "match" ? "Сопоставь пары"
-       : e.type === "build" ? "Собери из блоков"
+       : e.type === "build" ? (e.set ? "Собери набор · порядок не важен" : "Собери по порядку")
        : e.type === "recall" ? "Расскажи вслух"
        : e.code ? "Разбери код" : "Выбери ответ";
 }

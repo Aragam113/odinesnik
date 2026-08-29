@@ -6,7 +6,13 @@
 function seed(s){ var h = 2166136261; for(var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return function(){ h += 0x6D2B79F5; var t = h; t = Math.imul(t ^ t>>>15, t|1); t ^= t + Math.imul(t ^ t>>>7, t|61); return ((t ^ t>>>14)>>>0)/4294967296; }; }
 function shuffle(a, rnd){ a = a.slice(); for(var i=a.length-1;i>0;i--){ var j = Math.floor((rnd?rnd():Math.random())*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 function pick(arr, n, rnd){ return shuffle(arr, rnd).slice(0, n); }
-function clip(s, n){ return s.length > n ? s.slice(0, n).replace(/[\s,.;:—-]+$/,"") + "…" : s; }
+function clip(s, n){
+  if(s.length <= n) return s;
+  var cut = s.slice(0, n);
+  var sp = cut.lastIndexOf(" ");
+  if(sp > n * 0.55) cut = cut.slice(0, sp);        /* режем по границе слова, а не посреди */
+  return cut.replace(/[\s,.;:—–-]+$/, "") + "…";
+}
 
 /* дистракторы: сначала из той же группы, потом из любых */
 function others(card, pool, n, rnd){
@@ -54,13 +60,14 @@ function genMatch(cards, rnd){
   var four = cards.slice(0, 4);
   return {k:"m|"+four.map(function(c){return c.t;}).join("|"), type:"match",
     q:"Собери пары: термин и его значение",
-    pairs: four.map(function(c){ return {l:c.t, r:clip(c.d, 46)}; }),
+    pairs: four.map(function(c){ return {l:c.t, r:clip(c.d, 52)}; }),
     w:"Пары: " + four.map(function(c){ return c.t + " — " + clip(c.d, 60); }).join(" · ")};
 }
 
 /* --- сборка запроса из блоков --- */
 function genBuild(b){
-  return {k:"b|"+b.task, type:"build", q:b.task, tokens:b.tokens, extra:b.extra||[], w:b.w};
+  return {k:"b|"+b.task, type:"build", q:b.task, tokens:b.tokens, extra:b.extra||[],
+          set:!!b.set, w:b.w};
 }
 
 /* --- готовые задачи и фразы --- */

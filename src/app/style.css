@@ -227,14 +227,16 @@ pre.code{
 .opt:disabled{cursor:default}
 
 /* сопоставление пар */
-.match{display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start}
-.match-col{display:flex; flex-direction:column; gap:10px}
+.match{display:grid; grid-template-columns:1fr 1fr; gap:9px; align-items:start}
+.match-col{display:flex; flex-direction:column; gap:9px; min-width:0}
 .chip{
-  padding:12px 13px; border-radius:var(--r-sm); border:2px solid var(--line); border-bottom-width:4px;
-  background:var(--panel); font-size:13px; font-weight:700; text-align:left; line-height:1.3;
-  display:flex; align-items:center;
+  padding:11px 12px; border-radius:var(--r-sm); border:2px solid var(--line); border-bottom-width:4px;
+  background:var(--panel); font-size:12.5px; font-weight:700; text-align:left; line-height:1.32;
+  display:flex; align-items:center; min-height:60px;
+  overflow-wrap:anywhere; hyphens:auto;      /* длинные термины переносятся, а не вылезают */
   transition:background .12s, border-color .12s, opacity .2s;
 }
+@media (max-width:420px){.chip{font-size:11.5px; padding:9px 10px; min-height:54px}}
 .chip.sel{background:var(--info-soft); border-color:var(--info)}
 .chip.matched{opacity:.34; border-color:var(--ok); background:var(--ok-soft)}
 .chip.miss{animation:shake .4s ease-in-out}
@@ -250,8 +252,10 @@ pre.code{
 .tok{
   padding:8px 12px; border-radius:10px; border:2px solid var(--line); border-bottom-width:4px;
   background:var(--panel); font-family:"JetBrains Mono",monospace; font-size:12.5px; font-weight:500;
+  max-width:100%; overflow-wrap:anywhere; text-align:left;
   transition:transform .1s, background .12s;
 }
+@media (max-width:420px){.tok{font-size:11.5px; padding:7px 10px}}
 .tok:active:not(:disabled){transform:translateY(2px); border-bottom-width:2px; margin-bottom:2px}
 @media (hover:hover){.tok:hover:not(:disabled){background:var(--panel-2)}}
 .tok.in{background:var(--info-soft); border-color:var(--info-line)}

@@ -105,7 +105,14 @@ function checkAnswer(){
   var e = currentEx(); if(!e || LS.checked) return;
   var ok = false;
   if(e.type === "choose") ok = LS.pick !== null && e.o[LS.pick] && !!e.o[LS.pick].c;
-  else if(e.type === "build") ok = LS.built.join(" ") === e.tokens.join(" ");
+  else if(e.type === "build"){
+    var sortJoin = function(a){ return a.slice().sort().join(""); };
+    var sameSet = sortJoin(LS.built) === sortJoin(e.tokens);
+    ok = e.set ? sameSet : LS.built.join(" ") === e.tokens.join(" ");
+    /* подсказка по существу: состав верный, но порядок другой */
+    LS.buildHint = (!ok && sameSet) ? "Блоки выбраны верно, но порядок другой." :
+                   (!ok && LS.built.length !== e.tokens.length) ? "Блоков должно быть " + e.tokens.length + "." : "";
+  }
   else if(e.type === "match") ok = Object.keys(LS.matched).length === e.pairs.length*2;
   else if(e.type === "recall") ok = LS.pick === 1;
 
@@ -147,7 +154,7 @@ function nextEx(){
   if(!LS.correct && e.type !== "recall" && back < 2){ LS.requeued[e.k] = back + 1; LS.queue.push(e); }
   else LS.done++;
   LS.pick = null; LS.checked = false; LS.correct = false;
-  LS.matched = {}; LS.matchPick = null; LS.built = [];
+  LS.matched = {}; LS.matchPick = null; LS.built = []; LS.buildHint = "";
   if(!S.noHearts && hearts() === 0){ screen = "failed"; render(); return; }
   if(!LS.queue.length){ finishLesson(); return; }
   render();
