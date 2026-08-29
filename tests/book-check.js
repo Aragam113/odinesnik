@@ -21,6 +21,10 @@ const CARDS = G.TERMS.concat(G.TERMS2, G.TERMS3);
 let problems = 0;
 const bad = m => { problems++; console.log('  ! ' + m); };
 const strip = h => String(h).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+/* схем на раздел может быть несколько */
+const diasOf = b => b.dias || (b.dia ? [b.dia] : []);
+const diaText = b => diasOf(b).map(d => d.t + ' ' +
+  Object.keys(d.say).map(k => strip(d.say[k])).join(' ')).join(' ');
 
 /* ---------- 1. полнота: у каждого раздела свои материалы ---------- */
 console.log('=== ПОЛНОТА ===');
@@ -28,7 +32,7 @@ G.UNITS.forEach(u => {
   const b = G.BOOK[u.id];
   if (!b) return bad('раздел ' + u.id + ' «' + u.t + '» без материалов');
   if (!b.analogy || !b.analogy.html) bad(u.id + ': нет аналогии');
-  if (!b.dia) bad(u.id + ': нет схемы');
+  if (!diasOf(b).length) bad(u.id + ': нет схемы');
   if (!b.check) bad(u.id + ': нет вопроса на понимание');
   if (!b.blocks || b.blocks.length < 2) bad(u.id + ': меньше двух пояснений');
 });
@@ -38,7 +42,7 @@ console.log('  разделов: ' + G.UNITS.length + ', с материалам
 console.log('\n=== СХЕМЫ ===');
 let nodes = 0, links = 0;
 Object.keys(G.BOOK).forEach(id => {
-  const d = G.BOOK[id].dia; if (!d) return;
+  diasOf(G.BOOK[id]).forEach(function(d){
   const ids = {};
   d.nodes.forEach(n => {
     nodes++;
@@ -63,6 +67,7 @@ Object.keys(G.BOOK).forEach(id => {
     if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h)
       bad(id + ': блоки ' + a.id + ' и ' + b.id + ' накладываются');
   }
+  });
 });
 console.log('  узлов: ' + nodes + ', стрелок: ' + links);
 
@@ -110,7 +115,7 @@ CLAIMS.forEach(c => {
   if (!c.must.test(cardText)) bad('карточка «' + c.term + '» больше не содержит опорного утверждения');
   const all = Object.keys(G.BOOK).map(id => {
     const b = G.BOOK[id];
-    return strip(b.analogy.html) + ' ' + (b.dia ? Object.keys(b.dia.say).map(k => strip(b.dia.say[k])).join(' ') : '') +
+    return strip(b.analogy.html) + ' ' + diaText(b) +
            ' ' + (b.blocks || []).map(x => strip(x.html)).join(' ');
   }).join(' ');
   if (!c.book.test(all)) bad('материалы не повторяют утверждение про «' + c.term + '» — расхождение с карточкой');
@@ -120,7 +125,7 @@ CLAIMS.forEach(c => {
 console.log('\n=== ПОКРЫТИЕ ТЕМ РАЗДЕЛА ===');
 G.UNITS.forEach(u => {
   const b = G.BOOK[u.id]; if (!b || !u.groups.length) return;
-  const text = (strip(b.analogy.html) + ' ' + (b.dia ? b.dia.t + ' ' + Object.keys(b.dia.say).map(k => strip(b.dia.say[k])).join(' ') : '') +
+  const text = (strip(b.analogy.html) + ' ' + diaText(b) +
                 ' ' + (b.blocks || []).map(x => x.t + ' ' + strip(x.html)).join(' ')).toLowerCase();
   const grpCards = CARDS.filter(c => u.groups.indexOf(c.g) >= 0);
   const hit = grpCards.filter(c => text.indexOf(c.t.toLowerCase()) >= 0).length;

@@ -12,14 +12,16 @@ var bookUnit = null;      /* id раздела, чьи материалы отк
 var bookNode = null;      /* выбранный узел схемы */
 
 /* ---------- отрисовка схемы ---------- */
-function bookDiagram(d, sel){
+function bookDiagram(d, sel, pre){
+  pre = pre || "";
+  var mid = "ah" + pre.replace(/[^0-9]/g, "");   /* свой маркер на схему: id должны быть уникальны */
   if(!d) return "";
   var pad = 10;
   var svg = '<svg class="dia" viewBox="0 0 ' + d.w + ' ' + d.h + '" role="img" ' +
     'aria-label="' + esc(d.alt || "Схема") + '">';
 
   /* стрелки рисуем первыми, чтобы они уходили под блоки */
-  svg += '<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" ' +
+  svg += '<defs><marker id="' + mid + '" viewBox="0 0 10 10" refX="9" refY="5" ' +
     'markerWidth="7" markerHeight="7" orient="auto-start-reverse">' +
     '<path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>';
 
@@ -44,7 +46,7 @@ function bookDiagram(d, sel){
     var mx = (ax + bx) / 2, my = (ay + by) / 2;
     var cls = "dia-link" + (l.back ? " back" : "");
     svg += '<line class="' + cls + '" x1="' + ax + '" y1="' + ay + '" x2="' + bx + '" y2="' + by +
-           '" marker-end="url(#ah)"/>';
+           '" marker-end="url(#' + mid + ')"/>';
     if(l.t){
       svg += '<text class="dia-lt" x="' + mx + '" y="' + (my + (horiz ? -7 : 0)) + '" ' +
              'text-anchor="middle">' + esc(l.t) + '</text>';
@@ -54,7 +56,7 @@ function bookDiagram(d, sel){
   d.nodes.forEach(function(n){
     var on = sel === n.id;
     svg += '<g class="dia-node' + (on ? " on" : "") + ' k-' + (n.c || "base") + '" ' +
-      'tabindex="0" role="button" data-dianode="' + esc(n.id) + '" ' +
+      'tabindex="0" role="button" data-dianode="' + esc(pre + n.id) + '" ' +
       'aria-pressed="' + (on ? "true" : "false") + '">' +
       '<rect x="' + n.x + '" y="' + n.y + '" width="' + n.w + '" height="' + n.h + '" rx="12"/>' +
       '<text class="dia-t" x="' + (n.x + n.w / 2) + '" y="' + (n.y + (n.s ? n.h / 2 - 4 : n.h / 2 + 5)) + '" ' +
@@ -83,18 +85,27 @@ function vBook(){
     '<h3>' + esc(b.analogy.t) + '</h3><p>' + b.analogy.html + '</p></div>';
 
   /* схема */
-  if(b.dia){
-    var sel = bookNode && b.dia.say[bookNode] ? bookNode : null;
+  /* Схем на раздел может быть несколько. Выбранный узел хранится с
+     номером схемы («0|cli»), иначе одинаковые имена узлов в разных
+     схемах подсвечивались бы одновременно. */
+  var dias = b.dias || (b.dia ? [b.dia] : []);
+  dias.forEach(function(d, di){
+    var pre = di + "|";
+    var sel = null;
+    if(bookNode && bookNode.indexOf(pre) === 0){
+      var id = bookNode.slice(pre.length);
+      if(d.say[id]) sel = id;
+    }
     h += '<div class="card pad">' +
-      '<h3>' + esc(b.dia.t) + '</h3>' +
+      '<h3>' + esc(d.t) + '</h3>' +
       '<p class="dia-hint">Нажми на любой блок — расскажу, что это и зачем.</p>' +
-      '<div class="dia-wrap">' + bookDiagram(b.dia, sel) + '</div>' +
+      '<div class="dia-wrap">' + bookDiagram(d, sel, pre) + '</div>' +
       '<div class="dia-say' + (sel ? " on" : "") + '">' +
-        (sel ? '<b>' + esc((b.dia.nodes.filter(function(n){ return n.id === sel; })[0] || {}).t) + '</b>' +
-               '<p>' + b.dia.say[sel] + '</p>'
+        (sel ? '<b>' + esc((d.nodes.filter(function(n){ return n.id === sel; })[0] || {}).t) + '</b>' +
+               '<p>' + d.say[sel] + '</p>'
              : '<p class="muted">Пока ничего не выбрано.</p>') +
       '</div></div>';
-  }
+  });
 
   /* пояснения */
   (b.blocks || []).forEach(function(bl){

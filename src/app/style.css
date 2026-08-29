@@ -424,7 +424,7 @@ pre.code{
   min-height:64px; font-size:14px; line-height:1.55;
 }
 .dia-say.on{border-color:var(--u, var(--brand))}
-.dia-say b{display:block; margin-bottom:4px; color:var(--ink)}
+.dia-say > b{display:block; margin-bottom:4px; color:var(--ink)}
 .dia-say p{margin:0; color:var(--ink-2)}
 .dia-say .muted{color:var(--ink-3)}
 .dia-say code, .book code{
