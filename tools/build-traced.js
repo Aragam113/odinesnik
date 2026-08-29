@@ -9,7 +9,7 @@ const fs = require('fs');
 const T = require('./trace.js');
 
 const K = T.CFG.scale;                       // обратный масштаб в исходные пиксели
-const img = T.loadDownscaled('src.png', K);
+const img = T.loadDownscaled(require('path').join(__dirname,'source.png'), K);
 const { pal, idx } = T.quantize(img, T.CFG.tol, T.CFG.maxColors);
 const bg = idx[0];
 

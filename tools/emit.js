@@ -143,7 +143,7 @@ if (require.main === module) {
     for (const mo of moods) cells += '<td><div class="c">' + svg(n, mo) + '</div><small>' + mo + '</small></td>';
     cells += '</tr>';
   }
-  fs.writeFileSync('traced-sheet.html',
+  fs.writeFileSync(require('path').join(__dirname,'traced-sheet.html'),
     '<!doctype html><meta charset=utf-8><style>body{margin:0;padding:12px;background:#FBF9F4;font:600 11px system-ui}' +
     'table{border-collapse:collapse}th{text-align:right;padding-right:8px;font-size:12px;color:#6B6A64}' +
     'td{padding:2px;text-align:center}.c{width:112px;height:112px;background:#fff;border:2px solid #E4E0D6;border-radius:12px;display:grid;place-items:center}' +

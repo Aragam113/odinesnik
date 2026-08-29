@@ -20,6 +20,15 @@ function others(card, pool, n, rnd){
 function exChoose(key, q, code, options, correctIdx, why, hint){
   return {k:key, type:"choose", q:q, code:code||"", o:options, a:correctIdx, w:why, hint:hint||""};
 }
+/* Готовые банки (QUIZ, PHRASES, CLOZE) хранят верный ответ первым.
+   Без перемешивания он всегда оказывался на позиции 0 — задание решалось
+   без чтения. Здесь варианты тасуются и индекс верного пересчитывается. */
+function exFromBank(key, q, code, texts, correctIdx, why, hint, rnd){
+  var opts = shuffle(texts.map(function(t, i){ return {t:t, c: i === correctIdx ? 1 : 0}; }), rnd);
+  var a = 0;
+  for(var i = 0; i < opts.length; i++) if(opts[i].c) a = i;
+  return {k:key, type:"choose", q:q, code:code||"", o:opts, a:a, w:why, hint:hint||""};
+}
 
 /* --- из карточки термина --- */
 function genFromCard(card, pool, variant, rnd){
@@ -55,14 +64,14 @@ function genBuild(b){
 }
 
 /* --- готовые задачи и фразы --- */
-function genQuiz(q, i){
-  return exChoose("q|"+i, q.q, q.code||"", q.o.map(function(o,j){ return {t:o, c: j===q.a ? 1 : 0}; }), q.a, q.w);
+function genQuiz(q, i, rnd){
+  return exFromBank("q|"+i, q.q, q.code||"", q.o, q.a, q.w, "", rnd);
 }
-function genPhrase(p, i){
-  return exChoose("p|"+i, "Что имеет в виду собеседник?", "", p.o.map(function(o,j){ return {t:o, c: j===p.a ? 1:0}; }), p.a, p.w, p.p);
+function genPhrase(p, i, rnd){
+  return exFromBank("p|"+i, "Что имеет в виду собеседник?", "", p.o, p.a, p.w, p.p, rnd);
 }
-function genCloze(c, i){
-  return exChoose("z|"+i, c.q, c.code, c.o.map(function(o,j){ return {t:o, c: j===c.a?1:0}; }), c.a, c.w);
+function genCloze(c, i, rnd){
+  return exFromBank("z|"+i, c.q, c.code, c.o, c.a, c.w, "", rnd);
 }
 function genInterview(q, i){
   return {k:"i|"+i, type:"recall", q:q.q, w:q.a, meta:q.lvl + " · " + q.g};
@@ -112,41 +121,152 @@ function buildCourse(){
   return course;
 }
 
-/* ================= СБОРКА УРОКА ================= */
-function makeLesson(unit, lesson, attempt){
-  var rnd = seed(lesson.id + "#" + (attempt||0));
+/* ================= СБОРКА УРОКА =================
+   Урок собирается в момент открытия из всей базы знаний, а не из
+   фиксированного пула. Состав: новые карточки раздела + повторение
+   уже виденного из любых тем + прикладная задача + пары.
+   Порядок перемешивается так, чтобы подряд не шло больше двух
+   заданий одной темы — смешанная практика даёт худший результат
+   в моменте, но заметно лучший перенос (Rohrer & Taylor, 2007).
+   ================================================================= */
+
+/* какие карточки ученик уже видел: ключи упражнений вида "c0|Термин" */
+function seenTitles(srs){
+  var set = {};
+  for(var k in srs){ if(srs.hasOwnProperty(k)){ var t = k.split("|")[1]; if(t) set[t] = srs[k]; } }
+  return set;
+}
+
+/* карточки на повторение: сперва просроченные, потом просто знакомые,
+   и по возможности из других тем, чем ядро урока */
+function pickReview(exclude, n, rnd, srs, coreGroups){
+  var seen = seenTitles(srs), now = Date.now();
+  var ex = {}; exclude.forEach(function(c){ ex[c.t] = 1; });
+  var due = [], known = [];
+  CARDS.forEach(function(c){
+    if(ex[c.t]) return;
+    var s = seen[c.t];
+    if(!s) return;
+    (s.d && s.d <= now ? due : known).push(c);
+  });
+  var other = function(list){ return list.filter(function(c){ return coreGroups.indexOf(c.g) < 0; }); };
+  var out = pick(other(due), n, rnd);
+  if(out.length < n) out = out.concat(pick(due.filter(function(c){ return out.indexOf(c) < 0; }), n - out.length, rnd));
+  if(out.length < n) out = out.concat(pick(other(known), n - out.length, rnd));
+  if(out.length < n) out = out.concat(pick(known.filter(function(c){ return out.indexOf(c) < 0; }), n - out.length, rnd));
+  /* У новичка истории ещё нет. Чтобы урок не был однотемным, добираем
+     карточки из других тем — они пойдут как первое знакомство. */
+  if(out.length < n){
+    var fresh = CARDS.filter(function(c){
+      return !ex[c.t] && out.indexOf(c) < 0 && coreGroups.indexOf(c.g) < 0 && c.lvl <= 2;
+    });
+    out = out.concat(pick(fresh, n - out.length, rnd));
+  }
+  return out;
+}
+
+/* вариант задания зависит от того, впервые ли ученик видит термин:
+   первое знакомство — узнавание, дальше — воспроизведение и применение */
+function variantFor(card, srs, rnd){
+  var s = seenTitles(srs)[card.t];
+  if(!s) return 0;                       // впервые: определение по термину
+  var box = s.b || 0;
+  var pool = box >= 3 ? [2, 3, 1] : [1, 2, 3];
+  return pool[Math.floor(rnd() * pool.length)];
+}
+
+/* перемешивание с ограничением: не больше двух подряд из одной темы */
+function interleave(items, rnd){
+  /* Раскладываем по темам и всегда берём из самой многочисленной,
+     отличной от предыдущей. Жадный проход по списку оставлял хвост
+     из заданий одной темы и давал тройки подряд. */
+  var buckets = {}, order = [];
+  shuffle(items, rnd).forEach(function(it){
+    var g = it.g || "?";
+    if(!buckets[g]){ buckets[g] = []; order.push(g); }
+    buckets[g].push(it);
+  });
+  var out = [], last = null;
+  while(true){
+    var keys = order.filter(function(k){ return buckets[k].length; });
+    if(!keys.length) break;
+    keys.sort(function(a, b){ return buckets[b].length - buckets[a].length; });
+    var key = null;
+    for(var i = 0; i < keys.length; i++) if(keys[i] !== last){ key = keys[i]; break; }
+    if(!key) key = keys[0];              /* остались задания только одной темы */
+    last = key;
+    out.push(buckets[key].shift());
+  }
+  return out;
+}
+
+/* прикладные задачи раздела, без повторов внутри урока */
+function appliedFor(unit, lesson, rnd, used){
+  var out = [];
+  var qs = QUIZ.map(function(q, i){ return {q:q, i:i}; })
+               .filter(function(x){ return unit.quizG.indexOf(x.q.g) >= 0 && !used["q|" + x.i]; });
+  if(qs.length){ var q = pick(qs, 1, rnd)[0]; out.push(genQuiz(q.q, q.i, rnd)); used["q|" + q.i] = 1; }
+  /* сборка кода и пропуск в коде — отдельные типы обработки материала,
+     поэтому подмешиваются во все уроки, а не только в проверочные */
+  var topics = unit.quizG.concat(unit.groups);
+  var bs = BUILD.filter(function(b){ return topics.indexOf(b.g) >= 0; });
+  var cz = CLOZE.map(function(c, i){ return {c:c, i:i}; })
+                .filter(function(x){ return topics.indexOf(x.c.g) >= 0 && !used["z|" + x.i]; });
+  if(!bs.length && !cz.length){                       /* у раздела нет своих — берём любые */
+    bs = BUILD; cz = CLOZE.map(function(c, i){ return {c:c, i:i}; }).filter(function(x){ return !used["z|" + x.i]; });
+  }
+  if(bs.length && (rnd() < 0.5 || !cz.length)) out.push(genBuild(pick(bs, 1, rnd)[0]));
+  else if(cz.length){ var z = pick(cz, 1, rnd)[0]; out.push(genCloze(CLOZE[z.i], z.i, rnd)); used["z|" + z.i] = 1; }
+  return out;
+}
+
+function tag(ex, g){ ex.g = g; return ex; }
+
+function makeLesson(unit, lesson, attempt, ctx){
+  var rnd = seed(lesson.id + "#" + attempt);
+  ctx = ctx || {};
+  var srs = ctx.srs || {};
+  var used = {};
   var ex = [];
 
   if(lesson.kind === "boss"){
-    var qs = INTERVIEW.map(function(q,i){ return {q:q,i:i}; }).filter(function(x){ return x.q.lvl === lesson.lvl; });
-    pick(qs, Math.min(8, qs.length), rnd).forEach(function(x){ ex.push(genInterview(x.q, x.i)); });
-    return ex;
+    var qs = INTERVIEW.map(function(q, i){ return {q:q, i:i}; }).filter(function(x){ return x.q.lvl === lesson.lvl; });
+    pick(qs, Math.min(8, qs.length), rnd).forEach(function(x){ ex.push(tag(genInterview(x.q, x.i), x.q.g)); });
+    return interleave(ex, rnd);
   }
 
+  var core = lesson.kind === "check" ? pick(lesson.cards, Math.min(6, lesson.cards.length), rnd)
+                                     : (lesson.cards || []);
+  var coreGroups = [];
+  core.forEach(function(c){ if(coreGroups.indexOf(c.g) < 0) coreGroups.push(c.g); });
+
+  /* ядро: по одному заданию на карточку, вариант — по степени знакомства */
+  core.forEach(function(c){ ex.push(tag(genFromCard(c, CARDS, variantFor(c, srs, rnd), rnd), c.g)); });
+
+  /* фразы сленга — свой тип задания */
   if(lesson.kind === "slang"){
-    for(var i = lesson.from; i < lesson.to; i++) ex.push(genPhrase(PHRASES[i], i));
-    (lesson.cards||[]).forEach(function(c, j){ ex.push(genFromCard(c, CARDS, j % 4, rnd)); });
-    return shuffle(ex, rnd);
+    for(var i = lesson.from; i < lesson.to; i++) ex.push(tag(genPhrase(PHRASES[i], i, rnd), "сленг"));
   }
 
+  /* Сколько нужно повторения, чтобы разбавить самую массивную тему урока:
+     чтобы N заданий одной темы не шли подряд, нужно хотя бы N-1 чужих. */
+  var counts = {}, domin = 0;
+  ex.forEach(function(x){ counts[x.g] = (counts[x.g] || 0) + 1; if(counts[x.g] > domin) domin = counts[x.g]; });
+  var otherN = ex.length - domin;
+  var reviewN = Math.max(lesson.kind === "check" ? 4 : 3,
+                         Math.min(7, domin - 1 - otherN));
+  var review = pickReview(core, reviewN, rnd, srs, coreGroups);
+  review.forEach(function(c){ ex.push(tag(genFromCard(c, CARDS, variantFor(c, srs, rnd), rnd), c.g)); });
+
+  /* прикладное */
+  appliedFor(unit, lesson, rnd, used).forEach(function(x){ ex.push(tag(x, unit.quizG[0] || coreGroups[0])); });
   if(lesson.kind === "check"){
-    var pool = lesson.cards;
-    pick(pool, Math.min(6, pool.length), rnd).forEach(function(c, j){ ex.push(genFromCard(c, CARDS, (j+1) % 4, rnd)); });
-    if(pool.length >= 4) ex.push(genMatch(pick(pool, 4, rnd), rnd));
-    (lesson.quiz||[]).slice(0, 3).forEach(function(x){ ex.push(genQuiz(x.q, x.i)); });
-    if(lesson.build){
-      var bs = BUILD.filter(function(b){ return unit.quizG.indexOf(b.g) >= 0 || unit.groups.indexOf(b.g) >= 0; });
-      if(bs.length) ex.push(genBuild(pick(bs, 1, rnd)[0]));
-      var cz = CLOZE.filter(function(c){ return unit.quizG.indexOf(c.g) >= 0 || unit.groups.indexOf(c.g) >= 0; });
-      if(cz.length){ var ci = CLOZE.indexOf(pick(cz, 1, rnd)[0]); ex.push(genCloze(CLOZE[ci], ci)); }
-    }
-    return shuffle(ex, rnd);
+    appliedFor(unit, lesson, rnd, used).forEach(function(x){ ex.push(tag(x, unit.quizG[0] || coreGroups[0])); });
   }
 
-  /* обычный урок: каждая карточка даёт упражнение, плюс пары и задача */
-  lesson.cards.forEach(function(c, j){ ex.push(genFromCard(c, CARDS, j % 4, rnd)); });
-  if(lesson.cards.length >= 4) ex.push(genMatch(pick(lesson.cards, 4, rnd), rnd));
-  (lesson.quiz||[]).forEach(function(x){ ex.push(genQuiz(x.q, x.i)); });
-  lesson.cards.slice(0, 2).forEach(function(c, j){ ex.push(genFromCard(c, CARDS, (j+2) % 4, rnd)); });
-  return shuffle(ex, rnd);
+  /* пары: намеренно смешиваем ядро с повторением, чтобы столкнуть темы */
+  var pairPool = core.concat(review);
+  if(pairPool.length >= 4) ex.push(tag(genMatch(pick(pairPool, 4, rnd), rnd), "пары"));
+
+  return interleave(ex, rnd);
 }

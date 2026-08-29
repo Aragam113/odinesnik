@@ -3,7 +3,7 @@ var KEY = "odinesnik.v2";
 var S = {
   xp:0, byDay:{}, day:"", streak:0, goal:30,
   hearts:5, heartAt:0, noHearts:false,
-  crowns:{}, mistakes:[], srs:{}, road:{}, seenGreet:{}
+  crowns:{}, mistakes:[], srs:{}, road:{}, seenGreet:{}, runs:{}
 };
 try{ var raw = localStorage.getItem(KEY); if(raw){ var p = JSON.parse(raw); for(var k in p) if(p.hasOwnProperty(k)) S[k] = p[k]; } }catch(e){}
 /* перенос отметок дорожной карты из первой версии */
@@ -84,10 +84,14 @@ var LS = null;
 function startLesson(idx){
   var f = FLAT[idx];
   if(hearts() === 0 && !S.noHearts){ screen = "nohearts"; render(); return; }
-  var attempt = crowns(f.l.id);
+  /* seed переставал меняться после третьей звезды — урок повторялся дословно.
+     Теперь у каждого запуска свой номер, он же уходит в seed. */
+  if(!S.runs) S.runs = {};
+  S.runs[f.l.id] = (S.runs[f.l.id] || 0) + 1;
+  var attempt = crowns(f.l.id) + "r" + S.runs[f.l.id];
   LS = {
     idx: idx, sec: f.sec, lesson: f.l,
-    queue: makeLesson(f.sec.u, f.l, attempt),
+    queue: makeLesson(f.sec.u, f.l, attempt, {srs: S.srs, mistakes: S.mistakes}),
     done: 0, total: 0, wrong: 0, combo: 0, bestCombo: 0,
     pick: null, checked: false, correct: false,
     matched: {}, matchPick: null, built: [], startedAt: Date.now()
@@ -136,7 +140,11 @@ function checkAnswer(){
 
 function nextEx(){
   var e = LS.queue.shift();
-  if(!LS.correct && e.type !== "recall") LS.queue.push(e);   /* ошибку прогоняем ещё раз */
+  /* Ошибку прогоняем ещё раз, но не больше двух возвратов на задание:
+     иначе упражнение, которое не даётся, крутится в уроке бесконечно. */
+  if(!LS.requeued) LS.requeued = {};
+  var back = LS.requeued[e.k] || 0;
+  if(!LS.correct && e.type !== "recall" && back < 2){ LS.requeued[e.k] = back + 1; LS.queue.push(e); }
   else LS.done++;
   LS.pick = null; LS.checked = false; LS.correct = false;
   LS.matched = {}; LS.matchPick = null; LS.built = [];
@@ -168,7 +176,7 @@ function mistakeLesson(){
   COURSE.forEach(function(sec){ sec.lessons.forEach(function(l){
     if(l.kind === "boss") return;
     for(var a = 0; a < 2; a++){
-      makeLesson(sec.u, l, a).forEach(function(e){ if(S.mistakes.indexOf(e.k) >= 0) pool.push(e); });
+      makeLesson(sec.u, l, a, {srs: S.srs}).forEach(function(e){ if(S.mistakes.indexOf(e.k) >= 0) pool.push(e); });
     }
   }); });
   var seen = {}, out = [];

@@ -5,9 +5,10 @@
   "private": true,
   "scripts": {
     "build": "node build.js",
-    "test": "node tests/smoke.js",
+    "test": "node tests/smoke.js && node tests/quality.js",
     "trace": "node tools/gen-module.js && node tools/export-all.js ./mascots",
-    "svg": "node tools/export-all.js ./mascots"
+    "svg": "node tools/export-all.js ./mascots",
+    "quality": "node tests/quality.js"
   },
   "devDependencies": {
     "jsdom": "^26.0.0",

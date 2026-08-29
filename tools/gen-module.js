@@ -1,22 +1,58 @@
-/* Генерирует mascots-traced.js для тренажёра.
-   Пути лежат один раз в общем <defs>, экземпляры ссылаются через <use>,
-   поэтому десять персонажей на экране не десятикратно тяжелее одного. */
+/* Генерирует src/app/mascots-traced.js.
+   Персонажи берутся из двух источников:
+     — трассировка исходного растра (tools/source.png);
+     — правленые в Figma наборы SVG (tools/figma/), по файлу на состояние.
+   Пути лежат один раз в общем <defs>, экземпляры ссылаются через <use>. */
 const fs = require('fs');
+const path = require('path');
 const { figs } = require('./build-traced.js');
+const { importCharacter } = require('./figma-import.js');
+
+const FG = f => path.join(__dirname, 'figma', f);
+
+/* Правленые персонажи. Ключ состояния = имя файла, дальше настроения
+   собираются из этих состояний по слоям. */
+const FIGMA = {
+  byte: {
+    name: 'byte',
+    ref: 'default',
+    files: {
+      default: FG('Default.svg'), blink: FG('Blink.svg'), cheer: FG('Cheer.svg'),
+      happy:   FG('Happy.svg'),   sad:   FG('Sad.svg')
+    },
+    /* body берётся из состояния, остальное — послойно */
+    moods: {
+      idle:    { body: 'default', brows: 'default', eyes: 'default', mouth: 'default' },
+      blink:   { body: 'default', brows: 'default', eyes: 'blink',   mouth: 'default' },
+      cheer:   { body: 'cheer',   brows: 'cheer',   eyes: 'cheer',   mouth: 'cheer'   },
+      happy:   { body: 'default', brows: 'happy',   eyes: 'happy',   mouth: 'happy'   },
+      sad:     { body: 'default', brows: 'sad',     eyes: 'sad',     mouth: 'sad'     },
+      /* состояний ниже в файлах нет — выводятся трансформацией */
+      think:   { body: 'default', brows: '@down',   eyes: '@squint', mouth: '@flat'   },
+      wow:     { body: 'default', brows: 'happy',   eyes: 'happy',   mouth: '@o'      },
+      neutral: { body: 'default', brows: 'default', eyes: 'default', mouth: '@flat'   }
+    }
+  }
+};
 
 const P = r => '<path fill="' + r.fill + '" fill-rule="evenodd" d="' + r.d + '"/>';
 const defs = [];
 const DATA = {};
 
 for (const f of figs) {
-  const n = f.name, g = f.eyeGeom;
-  const p = f.parts;
-  const id = s => n + '-' + s;
+  const n = f.name;
+  if (FIGMA[n]) {
+    const imp = importCharacter(FIGMA[n]);
+    imp.defs.forEach(d => defs.push(d));
+    DATA[n] = imp.data;
+    console.log('  ' + n + ': из Figma');
+    console.table(imp.report);
+    continue;
+  }
 
+  const g = f.eyeGeom, p = f.parts, id = s => n + '-' + s;
   defs.push('<g id="' + id('body') + '">' + p.body.map(P).join('') + '</g>');
   if (p.front.length) defs.push('<g id="' + id('front') + '">' + p.front.map(P).join('') + '</g>');
-
-  /* глаз целиком: белок + зрачок + блик, по одному узлу на сторону */
   const side = (arr, e) => arr.filter(r => Math.abs(r.CX - e.cx) < e.rx * 1.7);
   (g || []).forEach((e, i) => {
     const parts = side(p.eyes, e).concat(side(p.pupils, e), side(p.sparks, e));
@@ -27,7 +63,6 @@ for (const f of figs) {
 
   const pad = 14;
   const vbFull = [f.x0 - pad, f.y0 - pad, (f.x1 - f.x0) + pad * 2, (f.y1 - f.y0) + pad * 2].map(Math.round).join(' ');
-  /* «портрет»: квадрат вокруг лица, центр — между глазами */
   const hx = g ? (g[0].cx + g[1].cx) / 2 : (f.x0 + f.x1) / 2;
   const hy = g ? g[0].cy : f.y0 + f.h * 0.3;
   const hs = f.h * 0.62;
@@ -46,12 +81,13 @@ for (const f of figs) {
 }
 
 const runtime = `/* =====================================================================
-   ПЕРСОНАЖИ, ТРАССИРОВАННЫЕ ИЗ РАСТРА
-   Пути получены обводкой цветовых областей исходной картинки
+   ПЕРСОНАЖИ
+   Нина и Сан Саныч получены обводкой цветовых областей исходного растра
    (квантование палитры с допуском, связные области, контур по «трещинам»,
-   упрощение Дугласа–Пекера). Разметка на глаза / брови / рот — по геометрии:
-   белок = светлое кольцо в верхней зоне, зрачок = тёмное внутри него и т.д.
-   Производные состояния мимики — трансформации тех же путей, не новый рисунок.
+   упрощение Дугласа–Пекера), разметка на глаза / брови / рот — по геометрии.
+   Байт нарисован вручную в Figma: по файлу на состояние, слои вынуты той же
+   разметкой. Состояния, которых в файлах нет, выводятся трансформацией
+   исходных слоёв — своего рисунка не добавляется.
    ===================================================================== */
 var MDATA = ${JSON.stringify(DATA)};
 var MDEFS = ${JSON.stringify(defs.join(''))};
@@ -75,14 +111,33 @@ function scaleAt(cx, cy, sx, sy){
 var MASCOT = {
   names: Object.keys(MDATA),
   moods: MOODS,
-  mood: function(name, m){ return MOODS[m] || MOODS.idle; },
-  defs: function(){
-    return '<svg id="mascot-defs" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">' +
-           '<defs>' + MDEFS + '</defs></svg>';
+  /* набор слоёв для настроения: у персонажа может быть свой */
+  mood: function(name, m){
+    var D = MDATA[name] || {};
+    if(D.moods && D.moods[m]) return D.moods[m];
+    if(D.moods && D.moods.idle && !MOODS[m]) return D.moods.idle;
+    return MOODS[m] || MOODS.idle;
+  },
+  /* какое тело показывать для настроения */
+  bodyId: function(name, m){
+    var D = MDATA[name]; if(!D) return null;
+    var set = MASCOT.mood(name, m);
+    if(D.art && D.art.body){
+      var key = D.art.body[set.body || 'default'] || D.art.body['default'];
+      if(key) return name + '-body-' + key;
+    }
+    return name + '-body';
   },
   part: function(name, layer, state){
     var D = MDATA[name];
-    if(!D) return '';
+    if(!D || !state) return '';
+    /* нарисованное состояние важнее выведенного трансформацией */
+    if(state.charAt(0) !== '@' && D.art && D.art[layer] && D.art[layer][state])
+      return useTag(name + '-' + layer + '-' + D.art[layer][state]);
+    var st = state.charAt(0) === '@' ? state.slice(1) : state;
+    var refKey = D.art && D.art[layer] ? (D.art[layer]['default'] || D.art[layer]['open'] || D.art[layer]['smile'] || D.art[layer]['neutral']) : null;
+    var refId = refKey ? (name + '-' + layer + '-' + refKey) : null;
+
     if(layer === "eyes"){
       if(!D.eyes) return '';
       var e0 = D.eyes[0], e1 = D.eyes[1] || D.eyes[0];
@@ -98,17 +153,25 @@ var MASCOT = {
           ' q' + (e.rx * 1.3).toFixed(1) + ' ' + (-e.ry * 0.5).toFixed(1) + ' ' + (e.rx * 2.6).toFixed(1) + ' 0' +
           ' v' + (-e.ry * 1.5).toFixed(1) + ' h' + (-e.rx * 2.6).toFixed(1) + 'z"/>';
       };
-      if(state === "blink")  return line(e0, e0.ry * 0.45) + line(e1, e1.ry * 0.45);
-      if(state === "happy")  return line(e0, -e0.ry * 1.5) + line(e1, -e1.ry * 1.5);
-      if(state === "wide")   return D.eyes.map(function(e, i){ return useTag(name + '-eye' + i, scaleAt(e.cx, e.cy, 1.16, 1.16)); }).join('');
-      if(state === "squint") return D.eyes.map(function(e, i){ return useTag(name + '-eye' + i, scaleAt(e.cx, e.cy, 1, 0.45)); }).join('');
-      if(state === "sad")    return D.eyes.map(function(e, i){ return useTag(name + '-eye' + i); }).join('') +
-                                    D.eyes.map(lid).join('');
-      return D.eyes.map(function(e, i){ return useTag(name + '-eye' + i); }).join('');
+      var mid = (e0.cx + e1.cx) / 2;
+      var whole = function(tf){
+        if(refId) return useTag(refId, tf);
+        return D.eyes.map(function(e, i){ return useTag(name + '-eye' + i, tf); }).join('');
+      };
+      if(st === "blink")  return line(e0, e0.ry * 0.45) + line(e1, e1.ry * 0.45);
+      if(st === "happy")  return line(e0, -e0.ry * 1.5) + line(e1, -e1.ry * 1.5);
+      if(st === "wide")   return whole(scaleAt(mid, e0.cy, 1.14, 1.14));
+      if(st === "squint") return whole(scaleAt(mid, e0.cy, 1, 0.45));
+      if(st === "sad")    return whole('') + D.eyes.map(lid).join('');
+      return whole('');
     }
     if(layer === "brows"){
-      var tilt = state === "down" ? -9 : state === "worried" ? 11 : 0;
-      var lift = state === "up" ? D.lift * 1.6 : state === "worried" ? D.lift * 0.3 : state === "down" ? -D.lift * 0.5 : 0;
+      var tilt = st === "down" ? -9 : st === "worried" ? 11 : 0;
+      var lift = st === "up" ? D.lift * 1.6 : st === "worried" ? D.lift * 0.3 : st === "down" ? -D.lift * 0.5 : 0;
+      if(refId){
+        var mv = (lift ? 'translate(0 ' + (-lift).toFixed(1) + ')' : '');
+        return useTag(refId, mv);
+      }
       return D.brows.map(function(b, i){
         var side = b.left ? 1 : -1;
         var tf = (lift ? 'translate(0 ' + (-lift).toFixed(1) + ') ' : '') +
@@ -125,25 +188,31 @@ var MASCOT = {
           '" stroke-linecap="round" d="M' + (m.cx - m.w * 0.42).toFixed(1) + ' ' + m.cy +
           ' Q' + m.cx + ' ' + (m.cy + bend).toFixed(1) + ' ' + (m.cx + m.w * 0.42).toFixed(1) + ' ' + m.cy + '"/>';
       };
-      if(state === "flat")  return curve(0);
-      if(state === "frown") return curve(-m.h * 0.55);
-      if(state === "o")     return '<ellipse cx="' + m.cx + '" cy="' + m.cy + '" rx="' + (m.w * 0.26).toFixed(1) +
-                                   '" ry="' + (m.h * 0.5).toFixed(1) + '" fill="' + D.mouthFill + '"/>';
-      if(state === "big")   return useTag(name + '-mouth', scaleAt(m.cx, m.cy, 1.2, 1.2));
-      return useTag(name + '-mouth');
+      if(st === "flat")  return curve(0);
+      if(st === "frown") return curve(-m.h * 0.55);
+      if(st === "o")     return '<ellipse cx="' + m.cx + '" cy="' + m.cy + '" rx="' + (m.w * 0.26).toFixed(1) +
+                                '" ry="' + (m.h * 0.5).toFixed(1) + '" fill="' + D.mouthFill + '"/>';
+      if(st === "big")   return refId ? useTag(refId, scaleAt(m.cx, m.cy, 1.2, 1.2))
+                                      : useTag(name + '-mouth', scaleAt(m.cx, m.cy, 1.2, 1.2));
+      return refId ? useTag(refId) : useTag(name + '-mouth');
     }
     return '';
+  },
+  defs: function(){
+    return '<svg id="mascot-defs" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">' +
+           '<defs>' + MDEFS + '</defs></svg>';
   },
   render: function(name, opts){
     opts = opts || {};
     var D = MDATA[name];
     if(!D) return '';
-    var m = typeof opts.mood === "string" ? (MOODS[opts.mood] || MOODS.idle) : (opts.mood || MOODS.idle);
+    var moodName = typeof opts.mood === "string" ? opts.mood : "idle";
+    var m = typeof opts.mood === "string" ? MASCOT.mood(name, opts.mood) : (opts.mood || MOODS.idle);
     var vb = D.vb[opts.frame === "head" ? "head" : "full"];
     return '<svg class="mascot' + (opts.cls ? ' ' + opts.cls : '') + '" viewBox="' + vb +
-      '" data-char="' + name + '" data-mood="' + (typeof opts.mood === "string" ? opts.mood : "idle") +
+      '" data-char="' + name + '" data-mood="' + moodName +
       '" role="img" aria-label="' + (opts.label || name) + '">' +
-      useTag(name + '-body') +
+      '<use class="m-body" href="#' + MASCOT.bodyId(name, moodName) + '"/>' +
       '<g class="m-brows">' + MASCOT.part(name, "brows", m.brows) + '</g>' +
       '<g class="m-eyes">'  + MASCOT.part(name, "eyes",  m.eyes)  + '</g>' +
       '<g class="m-mouth">' + MASCOT.part(name, "mouth", m.mouth) + '</g>' +
@@ -153,16 +222,16 @@ var MASCOT = {
 };
 `;
 
-/* ICON переносим из прежнего файла — он к персонажам не относится, но нужен интерфейсу */
-const prev = fs.readFileSync('mascots2.js', 'utf8');
-const icons = prev.slice(prev.indexOf('/* иконки узлов пути */'));
+const icons = fs.readFileSync(path.join(__dirname, 'icons-source.js'), 'utf8');
+const iconPart = icons.slice(icons.indexOf('/* иконки узлов пути */'));
 
-fs.writeFileSync('mascots-traced.js', runtime + '\n' + icons, 'utf8');
-const kb = (fs.statSync('mascots-traced.js').size / 1024).toFixed(0);
-console.log('mascots-traced.js:', kb + ' КБ');
-console.log('  в defs путей:', defs.length, '| размер defs:', (defs.join('').length / 1024).toFixed(0) + ' КБ');
+const outFile = path.join(__dirname, '..', 'src', 'app', 'mascots-traced.js');
+fs.writeFileSync(outFile, runtime + '\n' + iconPart, 'utf8');
+console.log('\nsrc/app/mascots-traced.js:', (fs.statSync(outFile).size / 1024).toFixed(0) + ' КБ');
+console.log('  групп в defs:', defs.length, '| размер defs:', (defs.join('').length / 1024).toFixed(0) + ' КБ');
 for (const n of Object.keys(DATA)) {
-  console.log('  ' + n, 'глаз:', DATA[n].eyes ? DATA[n].eyes.length : 0,
-              'бровей:', DATA[n].brows.length, 'рот:', DATA[n].mouth ? 'да' : 'нет',
-              'портрет:', DATA[n].vb.head);
+  const a = DATA[n].art;
+  console.log('  ' + n + ' — портрет ' + DATA[n].vb.head +
+    (a ? ' | состояний: тело ' + Object.keys(a.body).length + ', глаза ' + Object.keys(a.eyes).length +
+         ', брови ' + Object.keys(a.brows).length + ', рот ' + Object.keys(a.mouth).length : ''));
 }

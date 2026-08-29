@@ -17,6 +17,12 @@ var RIG = (function(){
     if(b) b.innerHTML = MASCOT.part(char, "brows", m.brows);
     if(e) e.innerHTML = MASCOT.part(char, "eyes",  m.eyes);
     if(o) o.innerHTML = MASCOT.part(char, "mouth", m.mouth);
+    /* у некоторых настроений своя поза тела — например, разведённые руки на ликовании */
+    if(typeof mood === "string" && MASCOT.bodyId){
+      var body = el.querySelector(".m-body");
+      var want = MASCOT.bodyId(char, mood);
+      if(body && want && body.getAttribute("href") !== "#" + want) body.setAttribute("href", "#" + want);
+    }
     el.setAttribute("data-mood", typeof mood === "string" ? mood : "custom");
   }
 
