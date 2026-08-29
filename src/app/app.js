@@ -141,6 +141,7 @@ function vPractice(){
 var TABS = [
   {id:"path", n:"Путь", ic:'<svg viewBox="0 0 24 24"><path d="M4 20V8a4 4 0 014-4h4a3 3 0 010 6H9a3 3 0 000 6h4a4 4 0 014 4"/></svg>'},
   {id:"practice", n:"Разбор", ic:ICON.bolt},
+  {id:"iv", n:"Собес", ic:'<svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/><circle cx="9" cy="10" r="1.4" fill="#fff"/><circle cx="12" cy="10" r="1.4" fill="#fff"/><circle cx="15" cy="10" r="1.4" fill="#fff"/></svg>'},
   {id:"ref", n:"Справочник", ic:'<svg viewBox="0 0 24 24"><path d="M5 4h9a4 4 0 014 4v12H9a4 4 0 01-4-4z"/><path d="M14 4h5v16" fill="none" stroke="currentColor" stroke-width="2"/></svg>'},
   {id:"stats", n:"Профиль", ic:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0z"/></svg>'}
 ];
@@ -158,15 +159,19 @@ function renderHUD(){
 function renderTabs(){
   $("#tabs").innerHTML = '<div class="tabs-in">'+ TABS.map(function(t){
     var b = t.id === "practice" && S.mistakes.length ? '<span class="badge">'+S.mistakes.length+'</span>' : '';
-    return '<button class="tab" data-tab="'+t.id+'" aria-current="'+(screen===t.id)+'">'+t.ic+b+'<span>'+t.n+'</span></button>';
+    var cur = screen === t.id || (t.id === "iv" && (screen === "ivhome" || screen === "iv" || screen === "ivdone"));
+    return '<button class="tab" data-tab="'+t.id+'" aria-current="'+cur+'">'+t.ic+b+'<span>'+t.n+'</span></button>';
   }).join("")+'</div>';
 }
 
 function render(){
   var lesson = $("#lesson"), main = $("#main"), hud = $("#hud"), tabs = $("#tabs");
-  if(screen === "lesson" || screen === "done" || screen === "failed" || screen === "nohearts"){
+  if(screen === "lesson" || screen === "done" || screen === "failed" || screen === "nohearts" ||
+     screen === "iv" || screen === "ivdone"){
     lesson.innerHTML = screen === "lesson" ? vLesson()
                      : screen === "done" ? vDone()
+                     : screen === "iv" ? vIvSession()
+                     : screen === "ivdone" ? vIvDone()
                      : screen === "failed" ? vFailed() : vNoHearts();
     lesson.classList.remove("hidden");
     main.classList.add("hidden"); hud.classList.add("hidden"); tabs.classList.add("hidden");
@@ -178,6 +183,7 @@ function render(){
   var v = $("#view");
   v.innerHTML = screen === "path" ? vPath()
               : screen === "practice" ? vPractice()
+              : screen === "ivhome" ? vIvHome()
               : screen === "ref" ? vRef() : vStats();
   renderHUD(); renderTabs();
   RIG.scan();
@@ -189,7 +195,7 @@ document.addEventListener("click", function(e){
   if(!t) return;
   var A = function(n){ return t.getAttribute(n); };
 
-  if(A("data-tab")){ screen = A("data-tab"); render(); var mn = $("#main"); if(mn) mn.scrollTop = 0; try{ window.scrollTo(0,0); }catch(e){} return; }
+  if(A("data-tab")){ screen = A("data-tab") === "iv" ? "ivhome" : A("data-tab"); render(); var mn = $("#main"); if(mn) mn.scrollTop = 0; try{ window.scrollTo(0,0); }catch(e){} return; }
   if(A("data-lesson") !== null && A("data-lesson") !== undefined){ startLesson(+A("data-lesson")); return; }
   if(A("data-quit")){ if(confirm("Не бросай на середине — прогресс этого подхода не сохранится. Точно выйти?")){ screen = "path"; LS = null; render(); } return; }
   if(A("data-check")){ checkAnswer(); return; }
@@ -200,6 +206,10 @@ document.addEventListener("click", function(e){
     save(); render(); return; }
   if(A("data-back")){ screen = "path"; LS = null; render(); return; }
   if(A("data-mistakes")){ startMistakes(); return; }
+  if(A("data-iv-start")){ ivStart(A("data-iv-start")); return; }
+  if(A("data-iv-show")){ IVS.shown = true; render(); return; }
+  if(A("data-iv-mark")){ ivRate(A("data-iv-mark")); return; }
+  if(A("data-iv-quit")){ screen = "ivhome"; IVS = null; render(); return; }
 
   var p = A("data-pick");
   if(p !== null && p !== undefined && !LS.checked){ LS.pick = +p; render(); return; }

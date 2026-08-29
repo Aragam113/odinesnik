@@ -11,8 +11,8 @@ const R = __dirname;
 const read = (...p) => fs.readFileSync(path.join(R, ...p), 'utf8');
 
 /* порядок важен: TERMS2/TERMS3 дополняют TERMS, LIBRARY дописывается в terms-slang */
-const DATA = ['terms.js', 'theory.js', 'exercises.js', 'terms-extra.js', 'terms-slang.js'];
-const APP  = ['engine.js', 'runner.js', 'views.js', 'app.js'];
+const DATA = ['terms.js', 'theory.js', 'exercises.js', 'terms-extra.js', 'terms-slang.js', 'interview-bank.js'];
+const APP  = ['engine.js', 'runner.js', 'interview.js', 'views.js', 'interview-views.js', 'app.js'];
 
 const helpers = `
 /* ---------- утилиты ---------- */

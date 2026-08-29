@@ -80,6 +80,14 @@ function genPhrase(p, i, rnd){
 function genCloze(c, i, rnd){
   return exFromBank("z|"+i, c.q, c.code, c.o, c.a, c.w, "", rnd);
 }
+/* вопрос с реального собеседования как задание «расскажи вслух» */
+function genIvRecall(q, i){
+  return {k:"iv|"+i, type:"recall", q:q.q,
+          w: (q.see && q.see.length)
+             ? "Спрашивают на реальных интервью. К этому вопросу относятся карточки: " + q.see.join(", ") + "."
+             : "Вопрос из живой практики — отвечай своим опытом, готового определения тут нет.",
+          meta:q.s};
+}
 function genInterview(q, i){
   return {k:"i|"+i, type:"recall", q:q.q, w:q.a, meta:q.lvl + " · " + q.g};
 }
@@ -269,6 +277,14 @@ function makeLesson(unit, lesson, attempt, ctx){
   appliedFor(unit, lesson, rnd, used).forEach(function(x){ ex.push(tag(x, unit.quizG[0] || coreGroups[0])); });
   if(lesson.kind === "check"){
     appliedFor(unit, lesson, rnd, used).forEach(function(x){ ex.push(tag(x, unit.quizG[0] || coreGroups[0])); });
+  }
+
+  /* один вопрос с реального собеседования — в проверочных уроках */
+  if(lesson.kind === "check" && typeof IVBANK !== "undefined"){
+    var topics = unit.quizG.concat(unit.groups);
+    var ivs = IVBANK.map(function(q, i){ return {q:q, i:i}; })
+                    .filter(function(x){ return topics.indexOf(x.q.g) >= 0; });
+    if(ivs.length){ var iv = pick(ivs, 1, rnd)[0]; ex.push(tag(genIvRecall(iv.q, iv.i), iv.q.g)); }
   }
 
   /* пары: намеренно смешиваем ядро с повторением, чтобы столкнуть темы */

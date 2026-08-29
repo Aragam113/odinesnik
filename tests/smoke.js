@@ -39,7 +39,7 @@ step('шапка с маскотом и счётчиками', () => {
   if (!A.q('.hud .brand svg')) throw new Error('нет маскота');
   if (A.all('.chip-stat').length < 3) throw new Error('счётчиков ' + A.all('.chip-stat').length);
 });
-step('четыре вкладки', () => { if (A.all('.tab').length !== 4) throw new Error('вкладок ' + A.all('.tab').length); });
+step('пять вкладок', () => { if (A.all('.tab').length !== 5) throw new Error('вкладок ' + A.all('.tab').length); });
 step('путь: 9 разделов', () => { if (A.all('.unit').length !== 9) throw new Error('разделов ' + A.all('.unit').length); });
 step('уроков на пути', () => { const n = A.all('.node').length; if (n < 40) throw new Error('узлов ' + n); });
 step('открыт только первый узел', () => {
@@ -50,7 +50,7 @@ step('на первом узле бейдж «Старт»', () => { if (!A.q('.
 
 /* ---------- переключение вкладок ---------- */
 head('=== вкладки ===');
-['practice', 'ref', 'stats', 'path'].forEach(t => {
+['practice', 'iv', 'ref', 'stats', 'path'].forEach(t => {
   step('вкладка ' + t, () => {
     A.click('[data-tab="' + t + '"]');
     if (!A.q('#view').innerHTML.trim()) throw new Error('пусто');
@@ -241,6 +241,54 @@ step('накопленные ошибки запускают разбор и в�
   B.click('[data-mistakes]');
   if (!B.q('.lesson')) throw new Error('разбор не запустился');
 });
+
+/* ---------- модуль «Собеседование» ---------- */
+head('=== собеседование ===');
+{
+  const B = api(boot(null));
+  step('банк вопросов загружен', () => {
+    B.click('[data-tab="iv"]');
+    if (!/вопросов в банке/.test(B.q('#view').textContent)) throw new Error('нет счётчика банка');
+    if (B.all('[data-iv-start]').length !== 3) throw new Error('стадий ' + B.all('[data-iv-start]').length);
+  });
+  step('сессия запускается', () => {
+    B.click('[data-iv-start="Техничка"]');
+    if (!B.q('.lesson')) throw new Error('экран не открылся');
+    if (!B.q('.ex-q').textContent.trim()) throw new Error('пустой вопрос');
+    if (!B.q('[data-iv-show]')) throw new Error('нет кнопки разбора');
+  });
+  step('разбор и самооценка', () => {
+    B.click('[data-iv-show]');
+    if (!B.q('.recall-a')) throw new Error('разбор не открылся');
+    if (B.all('[data-iv-mark]').length !== 3) throw new Error('оценок ' + B.all('[data-iv-mark]').length);
+  });
+  step('слабый ответ уходит в разбор ошибок', () => {
+    const before = B.state().mistakes.length;
+    B.click('[data-iv-mark="none"]');
+    const after = B.state().mistakes.length;
+    if (after < before) throw new Error('список ошибок сократился');
+  });
+  step('собес доходит до итога', () => {
+    let guard = 0;
+    while (guard++ < 60 && !/уверенность/.test(B.q('#lesson').textContent)) {
+      if (B.q('[data-iv-show]')) { B.click('[data-iv-show]'); continue; }
+      if (B.q('[data-iv-mark="solid"]')) { B.click('[data-iv-mark="solid"]'); continue; }
+      break;
+    }
+    if (!/уверенность/.test(B.q('#lesson').textContent)) throw new Error('итог не показан');
+    if (!/Где просело/.test(B.q('#lesson').textContent)) throw new Error('нет разбора по темам');
+  });
+  step('результат сохранён', () => {
+    const st = B.state();
+    if (!st.iv || !st.iv.runs) throw new Error('счётчик собесов пуст');
+    if (!(st.xp > 0)) throw new Error('xp не начислен');
+  });
+  step('выход возвращает к стадиям', () => {
+    B.click('[data-iv-quit]');
+    if (!B.all('[data-iv-start]').length) throw new Error('не вернулись к списку');
+  });
+  windows.push(B.w);
+}
 
 /* ---------- сброс ---------- */
 head('=== служебное ===');
