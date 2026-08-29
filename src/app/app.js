@@ -44,6 +44,11 @@ function vStats(){
       '<span class="txt" style="text-decoration:none;color:var(--ink)">Учиться без жизней<br>'+
       '<small style="color:var(--ink-3);font-weight:600">Ошибка не выкидывает из урока. Полезно, когда разбираешь новую тему, а не проверяешь себя.</small></span>'+
     '</button>'+
+    '<button class="chk" data-mute="toggle" aria-pressed="'+(!S.mute)+'">'+
+      '<span class="box">'+(S.mute?"":"✓")+'</span>'+
+      '<span class="txt" style="text-decoration:none;color:var(--ink)">Звук ответов<br>'+
+      '<small style="color:var(--ink-3);font-weight:600">Короткие сигналы на верный и неверный ответ. Файлов нет — звук синтезируется на лету.</small></span>'+
+    '</button>'+
     '<button class="chk" data-reset="1"><span class="box">✕</span>'+
       '<span class="txt" style="text-decoration:none;color:var(--no)">Сбросить весь прогресс</span></button>'+
   '</div>';
@@ -249,10 +254,15 @@ document.addEventListener("click", function(e){
     if(screen === "failed" || screen === "nohearts"){ screen = "path"; LS = null; }
     render(); return;
   }
+  if(A("data-mute")){
+    S.mute = !S.mute; save();
+    if(!S.mute) SFX.correct();          /* сразу слышно, что включилось */
+    render(); return;
+  }
   if(A("data-reset")){
     if(!confirm("Обнулить весь прогресс: XP, серию, звёзды и отметки?")) return;
     S = {xp:0, byDay:{}, day:TODAY, streak:1, goal:30, hearts:5, heartAt:0, noHearts:false,
-         crowns:{}, mistakes:[], srs:{}, road:{}, seenGreet:{}};
+         crowns:{}, mistakes:[], srs:{}, road:{}, seenGreet:{}, runs:{}, mute:S.mute};
     save(); screen = "path"; render(); return;
   }
 });

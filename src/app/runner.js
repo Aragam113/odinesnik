@@ -136,12 +136,13 @@ function checkAnswer(){
       if(S.mistakes.indexOf(e.k) < 0) S.mistakes.unshift(e.k);
       S.mistakes = S.mistakes.slice(0, 60);
       S.srs[e.k] = {b:0, d:Date.now()};
-      if(!repeat) loseHeart();     /* разбор ошибки внутри урока — бесплатно */
+      if(!repeat){ loseHeart(); SFX.heart(); }   /* разбор ошибки внутри урока — бесплатно */
     }
   }
   if(!LS.seen) LS.seen = {};
   LS.seen[e.k] = 1;
   save(); render();
+  SFX[ok ? "correct" : "wrong"]();
   RIG.playAll(ok ? "correct" : "wrong", document.getElementById("lesson"));
 }
 
@@ -155,7 +156,7 @@ function nextEx(){
   else LS.done++;
   LS.pick = null; LS.checked = false; LS.correct = false;
   LS.matched = {}; LS.matchPick = null; LS.built = []; LS.buildHint = "";
-  if(!S.noHearts && hearts() === 0){ screen = "failed"; render(); return; }
+  if(!S.noHearts && hearts() === 0){ SFX.fail(); screen = "failed"; render(); return; }
   if(!LS.queue.length){ finishLesson(); return; }
   render();
 }
@@ -174,6 +175,7 @@ function finishLesson(){
   LS.earned = base + LS.comboBonus + (LS.perfect ? 5 : 0);
   addXP(LS.earned);
   save();
+  SFX.finish();
   screen = "done"; render();
 }
 

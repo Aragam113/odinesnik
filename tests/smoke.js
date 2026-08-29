@@ -4,7 +4,9 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 const body = fs.readFileSync(require('path').join(__dirname,'..','dist','artifact.html'), 'utf8');
 const errs = [], log = [];
 const vc = new VirtualConsole();
-vc.on('jsdomError', e => errs.push('JSDOM: ' + e.message));
+/* jsdom не реализует часть браузерного API — это среда, а не страница */
+const NOISE = /Not implemented: window\.(scrollTo|scroll|alert|confirm)|AudioContext/;
+vc.on('jsdomError', e => { if (!NOISE.test(e.message)) errs.push('JSDOM: ' + e.message); });
 vc.on('error', (...a) => errs.push('console.error: ' + a.join(' ')));
 
 const windows = [];
@@ -292,6 +294,19 @@ head('=== собеседование ===');
 
 /* ---------- сброс ---------- */
 head('=== служебное ===');
+step('тумблер звука переключается и сохраняется', () => {
+  const M = api(boot(null));
+  windows.push(M.w);
+  M.click('[data-tab="stats"]');
+  const t = M.q('[data-mute]');
+  if (!t) throw new Error('нет тумблера звука');
+  if (t.getAttribute('aria-pressed') !== 'true') throw new Error('звук выключен по умолчанию');
+  M.click(t);
+  if (M.state().mute !== true) throw new Error('выключение не сохранилось');
+  M.click('[data-mute]');
+  if (M.state().mute !== false) throw new Error('включение не сохранилось');
+});
+
 step('сброс обнуляет всё', () => {
   const B = api(boot({ xp: 500, byDay: {}, day: '', streak: 7, goal: 30, hearts: 5, heartAt: 0, noHearts: false,
                        crowns: { 'u1.L0': 2 }, mistakes: ['x'], srs: {}, road: { 'r0.0': true } }));
@@ -328,6 +343,10 @@ step('body красится токеном', () => {
   if (!/body\{[^}]*background:var\(--paper\)/.test(body.replace(/\s+/g, ''))) throw new Error('нет фона body');
 });
 
+/* окна держат таймеры (моргание маскота), поэтому закрываем явно */
+windows.forEach(w => { try { w.close(); } catch (e) {} });
+
 console.log(log.join('\n'));
 console.log('\n=== ИТОГ ===');
 console.log(errs.length ? 'ОШИБОК: ' + errs.length + '\n' + errs.join('\n') : 'Все проверки пройдены. Ошибок в консоли страницы нет.');
+process.exit(errs.length ? 1 : 0);

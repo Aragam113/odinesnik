@@ -60,6 +60,7 @@ function ivRate(markId){
   var q = ivCurrent(); if(!q) return;
   var m = IV_MARKS.filter(function(x){ return x.id === markId; })[0];
   IVS.marks.push({q:q, m:m});
+  SFX[m.v === 2 ? "correct" : m.v === 1 ? "heart" : "wrong"]();
   /* то, что не далось, отправляем в разбор ошибок через связанные карточки */
   if(m.v < 2 && q.see){
     q.see.forEach(function(t){
@@ -93,6 +94,7 @@ function ivFinish(){
   addXP(10 + Math.round(IVS.score / 10));
   markActive();
   save();
+  SFX[IVS.score >= 55 ? "finish" : "fail"]();
   screen = "ivdone"; render();
 }
 

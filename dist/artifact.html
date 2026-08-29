@@ -3317,6 +3317,100 @@ function hl(code){
   });
 }
 
+/* =====================================================================
+   ЗВУК
+   Синтез через Web Audio, без единого файла: внешние медиа в артефакте
+   заблокированы политикой безопасности, а data-URI раздули бы страницу.
+   Контекст создаётся только по первому нажатию — до жеста браузер
+   всё равно не даст ничего воспроизвести.
+   ===================================================================== */
+var SFX = (function(){
+  var ctx = null, master = null, broken = false;
+
+  function init(){
+    if(broken) return null;
+    try{
+      if(!ctx){
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC){ broken = true; return null; }
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 1.7;
+        master.connect(ctx.destination);
+      }
+      if(ctx.state === "suspended") ctx.resume();
+      return ctx;
+    }catch(e){ broken = true; return null; }
+  }
+
+  /* одна нота: частота, скольжение, длительность, тембр, огибающая */
+  function note(o){
+    var c = init(); if(!c) return;
+    var t = c.currentTime + (o.at || 0);
+    var dur = o.dur || 0.12;
+    var osc = c.createOscillator();
+    var g = c.createGain();
+    osc.type = o.type || "sine";
+    osc.frequency.setValueAtTime(o.f, t);
+    if(o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur);
+
+    var peak = o.gain == null ? 0.16 : o.gain;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + (o.attack || 0.010));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+    var tail = osc;
+    if(o.lp){
+      var f = c.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.setValueAtTime(o.lp, t);
+      if(o.lpTo) f.frequency.exponentialRampToValueAtTime(o.lpTo, t + dur);
+      tail.connect(f); tail = f;
+    }
+    tail.connect(g);
+    g.connect(master);
+    osc.start(t);
+    osc.stop(t + dur + 0.06);
+  }
+
+  var on = function(){ return !(typeof S !== "undefined" && S.mute); };
+
+  return {
+    /* верный ответ: короткая светлая квинта вверх */
+    correct: function(){
+      if(!on()) return;
+      note({f:784,  dur:0.10, type:"triangle", gain:0.15});
+      note({f:1175, dur:0.16, type:"triangle", gain:0.13, at:0.070});
+      note({f:1568, dur:0.20, type:"sine",     gain:0.06, at:0.070});
+    },
+    /* неверный: низкий короткий гудок со съездом вниз, приглушённый */
+    wrong: function(){
+      if(!on()) return;
+      note({f:200, to:126, dur:0.26, type:"sawtooth", gain:0.11, lp:1100, lpTo:420});
+      note({f:100, to:70,  dur:0.24, type:"sine",     gain:0.09});
+    },
+    /* конец урока: восходящее трезвучие */
+    finish: function(){
+      if(!on()) return;
+      [[523,0],[659,0.085],[784,0.17],[1047,0.28]].forEach(function(p){
+        note({f:p[0], dur:p[1] === 0.28 ? 0.42 : 0.20, type:"triangle", gain:0.13, at:p[1]});
+      });
+    },
+    /* провал урока: две ступени вниз */
+    fail: function(){
+      if(!on()) return;
+      note({f:330, dur:0.20, type:"triangle", gain:0.12});
+      note({f:247, dur:0.34, type:"triangle", gain:0.12, at:0.16});
+    },
+    /* потеря жизни: сухой щелчок */
+    heart: function(){
+      if(!on()) return;
+      note({f:520, to:300, dur:0.09, type:"square", gain:0.05, lp:1800});
+    },
+    ready: function(){ return init() !== null; }
+  };
+})();
+
 /* ================= ГЕНЕРАТОР УПРАЖНЕНИЙ =================
    Из 169 карточек, 30 фраз, 20 задач и 12 сборок собирается
    несколько сотен упражнений шести типов. Дистракторы берутся
@@ -3751,12 +3845,13 @@ function checkAnswer(){
       if(S.mistakes.indexOf(e.k) < 0) S.mistakes.unshift(e.k);
       S.mistakes = S.mistakes.slice(0, 60);
       S.srs[e.k] = {b:0, d:Date.now()};
-      if(!repeat) loseHeart();     /* разбор ошибки внутри урока — бесплатно */
+      if(!repeat){ loseHeart(); SFX.heart(); }   /* разбор ошибки внутри урока — бесплатно */
     }
   }
   if(!LS.seen) LS.seen = {};
   LS.seen[e.k] = 1;
   save(); render();
+  SFX[ok ? "correct" : "wrong"]();
   RIG.playAll(ok ? "correct" : "wrong", document.getElementById("lesson"));
 }
 
@@ -3770,7 +3865,7 @@ function nextEx(){
   else LS.done++;
   LS.pick = null; LS.checked = false; LS.correct = false;
   LS.matched = {}; LS.matchPick = null; LS.built = []; LS.buildHint = "";
-  if(!S.noHearts && hearts() === 0){ screen = "failed"; render(); return; }
+  if(!S.noHearts && hearts() === 0){ SFX.fail(); screen = "failed"; render(); return; }
   if(!LS.queue.length){ finishLesson(); return; }
   render();
 }
@@ -3789,6 +3884,7 @@ function finishLesson(){
   LS.earned = base + LS.comboBonus + (LS.perfect ? 5 : 0);
   addXP(LS.earned);
   save();
+  SFX.finish();
   screen = "done"; render();
 }
 
@@ -3876,6 +3972,7 @@ function ivRate(markId){
   var q = ivCurrent(); if(!q) return;
   var m = IV_MARKS.filter(function(x){ return x.id === markId; })[0];
   IVS.marks.push({q:q, m:m});
+  SFX[m.v === 2 ? "correct" : m.v === 1 ? "heart" : "wrong"]();
   /* то, что не далось, отправляем в разбор ошибок через связанные карточки */
   if(m.v < 2 && q.see){
     q.see.forEach(function(t){
@@ -3909,6 +4006,7 @@ function ivFinish(){
   addXP(10 + Math.round(IVS.score / 10));
   markActive();
   save();
+  SFX[IVS.score >= 55 ? "finish" : "fail"]();
   screen = "ivdone"; render();
 }
 
@@ -4284,6 +4382,11 @@ function vStats(){
       '<span class="txt" style="text-decoration:none;color:var(--ink)">Учиться без жизней<br>'+
       '<small style="color:var(--ink-3);font-weight:600">Ошибка не выкидывает из урока. Полезно, когда разбираешь новую тему, а не проверяешь себя.</small></span>'+
     '</button>'+
+    '<button class="chk" data-mute="toggle" aria-pressed="'+(!S.mute)+'">'+
+      '<span class="box">'+(S.mute?"":"✓")+'</span>'+
+      '<span class="txt" style="text-decoration:none;color:var(--ink)">Звук ответов<br>'+
+      '<small style="color:var(--ink-3);font-weight:600">Короткие сигналы на верный и неверный ответ. Файлов нет — звук синтезируется на лету.</small></span>'+
+    '</button>'+
     '<button class="chk" data-reset="1"><span class="box">✕</span>'+
       '<span class="txt" style="text-decoration:none;color:var(--no)">Сбросить весь прогресс</span></button>'+
   '</div>';
@@ -4489,10 +4592,15 @@ document.addEventListener("click", function(e){
     if(screen === "failed" || screen === "nohearts"){ screen = "path"; LS = null; }
     render(); return;
   }
+  if(A("data-mute")){
+    S.mute = !S.mute; save();
+    if(!S.mute) SFX.correct();          /* сразу слышно, что включилось */
+    render(); return;
+  }
   if(A("data-reset")){
     if(!confirm("Обнулить весь прогресс: XP, серию, звёзды и отметки?")) return;
     S = {xp:0, byDay:{}, day:TODAY, streak:1, goal:30, hearts:5, heartAt:0, noHearts:false,
-         crowns:{}, mistakes:[], srs:{}, road:{}, seenGreet:{}};
+         crowns:{}, mistakes:[], srs:{}, road:{}, seenGreet:{}, runs:{}, mute:S.mute};
     save(); screen = "path"; render(); return;
   }
 });
