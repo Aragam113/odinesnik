@@ -14,10 +14,72 @@ function clip(s, n){
   return cut.replace(/[\s,.;:—–-]+$/, "") + "…";
 }
 
-/* дистракторы: сначала из той же группы, потом из любых */
+/* Границы слова: \b в JS не знает кириллицы, поэтому задаём явно. */
+var NW = "[^а-яёА-ЯЁa-zA-Z0-9]";
+function reWord(w){
+  return new RegExp("(^|" + NW + ")(" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")(" + NW + "|$)", "gi");
+}
+
+/* Обрезка, которая не врёт.
+   «Клиентское приложение, которое не работает с базой…» — обрывок
+   утверждает обратное тому, что написано дальше («…напрямую»).
+   Поэтому режем по границе фразы и никогда не заканчиваем на слове,
+   которое требует продолжения. */
+var DANGLING = ["не","ни","без","только","кроме","вместо","нельзя","а","но","и","или","как","чем","что","чтобы","то","этой","этого","этом","при","для","из","по","с","в","на","к","о","от","до","же"];
+function clipClause(s, soft, hard){
+  if(s.length <= soft) return s;
+  /* Ищем границу фразы в окне. Конец предложения всегда лучше запятой:
+     иначе «…плюс код. То, что…» режется после «То» и повисает. */
+  var lo = Math.floor(soft * 0.5), hi = Math.min(s.length, hard);
+  var sent = -1, comma = -1;
+  for(var i = lo; i < hi; i++){
+    if(/[.;:!?]/.test(s[i])) sent = i;
+    else if(s[i] === "," && i > soft * 0.7) comma = i;
+  }
+  var best = sent > 0 ? sent : comma;
+  var cut;
+  if(best > 0 && best < hard){
+    cut = s.slice(0, best);
+    if(cut.length >= soft * 0.5) return cut.replace(/[\s,;:—–-]+$/, "") + (best < s.length - 1 ? "…" : "");
+  }
+  /* границы нет — режем по слову и добираем, пока хвост не повиснет */
+  cut = s.slice(0, Math.min(hard, s.length));
+  var sp = cut.lastIndexOf(" ");
+  if(sp > 0) cut = cut.slice(0, sp);
+  var guard = 0;
+  while(guard++ < 12){
+    var tail = cut.replace(/[\s,.;:—–-]+$/, "").split(" ").pop().toLowerCase().replace(/[^а-яёa-z]/g, "");
+    if(DANGLING.indexOf(tail) < 0) break;
+    var back = cut.replace(/[\s,.;:—–-]+$/, "").lastIndexOf(" ");
+    if(back <= 0) break;
+    cut = cut.slice(0, back);
+  }
+  return cut.replace(/[\s,.;:—–-]+$/, "") + "…";
+}
+
+/* Прячем сам термин во фразе: иначе вариант «О чём речь?» решается
+   чтением, а не пониманием. Возвращает null, если от фразы почти
+   ничего не осталось — тогда этот вариант вопроса не годится. */
+function maskTerm(text, card){
+  if(!text) return null;
+  var masked = text;
+  var forms = [card.t];
+  if(card.tr && card.tr.length > 3 && /^[А-ЯЁA-Z]/.test(card.tr)) forms.push(card.tr);
+  forms.forEach(function(w){
+    masked = masked.replace(reWord(w), function(m, a, hit, b){ return a + "…" + b; });
+  });
+  if(masked === text) return text;
+  if(masked.replace(/…/g, "").length < text.length * 0.6) return null;
+  return masked;
+}
+
+/* Дистракторы: сначала из той же группы, потом из любых.
+   Карточки-сравнения (nolabel) дистракторами не бывают: их утверждения
+   верны сразу про несколько терминов, и вопрос получил бы два верных
+   ответа. Вопрос о самой такой карточке задать по-прежнему можно. */
 function others(card, pool, n, rnd){
-  var same = pool.filter(function(c){ return c !== card && c.g === card.g; });
-  var rest = pool.filter(function(c){ return c !== card && c.g !== card.g; });
+  var same = pool.filter(function(c){ return c !== card && !c.nolabel && c.g === card.g; });
+  var rest = pool.filter(function(c){ return c !== card && !c.nolabel && c.g !== card.g; });
   var out = pick(same, n, rnd);
   if(out.length < n) out = out.concat(pick(rest, n - out.length, rnd));
   return out;
@@ -39,20 +101,45 @@ function exFromBank(key, q, code, texts, correctIdx, why, hint, rnd){
 /* --- из карточки термина --- */
 function genFromCard(card, pool, variant, rnd){
   var d = others(card, pool, 3, rnd);
+  /* Карточки-сравнения (nolabel) не являются названиями, поэтому не
+     годятся ни как верный ответ, ни как дистрактор там, где выбирают
+     термин: иначе у вопроса оказывается два верных ответа. */
+  if((variant === 1 || variant === 2) && card.nolabel) variant = 3;
+  if(variant === 1 || variant === 2){
+    var named = pool.filter(function(c){ return c !== card && !c.nolabel && c.g === card.g; });
+    if(named.length < 3) named = pool.filter(function(c){ return c !== card && !c.nolabel; });
+    d = pick(named, 3, rnd);
+  }
   if(variant === 0){
-    var opts = shuffle([{t:clip(card.d,150), c:1}].concat(d.map(function(x){ return {t:clip(x.d,150), c:0}; })), rnd);
+    var opts = shuffle([{t:clipClause(card.d,110,150), c:1}].concat(d.map(function(x){ return {t:clipClause(x.d,110,150), c:0}; })), rnd);
     return exChoose("c0|"+card.t, "Что такое «" + card.t + "»?", "", opts, opts.findIndex(function(o){return o.c;}), card.live, card.tr);
   }
   if(variant === 1){
     var opts1 = shuffle([{t:card.t, c:1}].concat(d.map(function(x){ return {t:x.t, c:0}; })), rnd);
-    return exChoose("c1|"+card.t, "Как это называется?", "", opts1, opts1.findIndex(function(o){return o.c;}), card.t + " — " + card.d, clip(card.d, 160));
+    return exChoose("c1|"+card.t, "Как это называется?", "", opts1, opts1.findIndex(function(o){return o.c;}), card.t + " — " + card.d, clipClause(card.d, 120, 165));
   }
   if(variant === 2){
-    var opts2 = shuffle([{t:card.t, c:1}].concat(d.map(function(x){ return {t:x.t, c:0}; })), rnd);
-    return exChoose("c2|"+card.t, "О чём речь в этой фразе?", "", opts2, opts2.findIndex(function(o){return o.c;}), card.live, card.ex);
+    var phrase = maskTerm(card.ex, card);
+    if(phrase){
+      var opts2 = shuffle([{t:card.t, c:1}].concat(d.map(function(x){ return {t:x.t, c:0}; })), rnd);
+      return exChoose("c2|"+card.t, "О чём речь в этой фразе?", "", opts2, opts2.findIndex(function(o){return o.c;}), card.t + " — " + card.d, phrase);
+    }
+    variant = 3;                       /* фраза без термина не остаётся — берём другой вопрос */
   }
-  var opts3 = shuffle([{t:clip(card.live,150), c:1}].concat(d.map(function(x){ return {t:clip(x.live,150), c:0}; })), rnd);
-  return exChoose("c3|"+card.t, "«" + card.t + "» — что это значит на практике?", "", opts3, opts3.findIndex(function(o){return o.c;}), card.d + " " + card.ex, card.tr);
+  /* Вариант «на практике» строится на поле fact — коротком проверяемом
+     утверждении, верном ровно для этого термина и неверном для соседей.
+     Раньше верным ответом было live, то есть авторская реплика о рынке
+     и людях; выбрать её среди чужих таких же можно было только по
+     памяти, а не по знанию. */
+  var withFact = d.filter(function(x){ return x.fact; });
+  if(card.fact && withFact.length >= 3){
+    var opts3 = shuffle([{t:card.fact, c:1}].concat(withFact.slice(0, 3).map(function(x){ return {t:x.fact, c:0}; })), rnd);
+    return exChoose("c3|"+card.t, "Что из этого верно про «" + card.t + "»?", "", opts3,
+      opts3.findIndex(function(o){return o.c;}), card.d + (card.live ? " " + card.live : ""), card.tr);
+  }
+  var optsD = shuffle([{t:clipClause(card.d, 110, 150), c:1}].concat(d.map(function(x){ return {t:clipClause(x.d, 110, 150), c:0}; })), rnd);
+  return exChoose("c0|"+card.t, "Что такое «" + card.t + "»?", "", optsD,
+    optsD.findIndex(function(o){return o.c;}), card.live, card.tr);
 }
 
 /* --- сопоставление пар --- */
@@ -60,8 +147,8 @@ function genMatch(cards, rnd){
   var four = cards.slice(0, 4);
   return {k:"m|"+four.map(function(c){return c.t;}).join("|"), type:"match",
     q:"Собери пары: термин и его значение",
-    pairs: four.map(function(c){ return {l:c.t, r:clip(c.d, 52)}; }),
-    w:"Пары: " + four.map(function(c){ return c.t + " — " + clip(c.d, 60); }).join(" · ")};
+    pairs: four.map(function(c){ return {l:c.t, r:clipClause(c.d, 52, 82)}; }),
+    w:"Пары: " + four.map(function(c){ return c.t + " — " + clipClause(c.d, 60, 92); }).join(" · ")};
 }
 
 /* --- сборка запроса из блоков --- */

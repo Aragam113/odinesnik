@@ -87,7 +87,15 @@ function vLesson(){
   }
 
   if(e.type === "build"){
-    var bank = shuffle(e.tokens.concat(e.extra), seed(e.k)).filter(function(t){ return LS.built.indexOf(t) < 0; });
+    /* Из банка убираем ровно столько копий блока, сколько уже поставлено.
+       Фильтр по значению съедал оба «КАК» после первого — задания,
+       где блок нужен дважды, становились нерешаемыми. */
+    var used = {};
+    LS.built.forEach(function(t){ used[t] = (used[t] || 0) + 1; });
+    var bank = shuffle(e.tokens.concat(e.extra), seed(e.k)).filter(function(t){
+      if(used[t]){ used[t]--; return false; }
+      return true;
+    });
     body = '<div class="build-line">'+
         (LS.built.length ? LS.built.map(function(t, i){ return '<button class="tok in" data-unbuild="'+i+'">'+esc(t)+'</button>'; }).join("")
                          : '<span class="build-empty">Собери из блоков ниже</span>')+
