@@ -1,0 +1,16 @@
+{
+  "name": "odinesnik",
+  "version": "2.0.0",
+  "description": "Тренажёр одинэсника — вход в 1С-разработку с нуля",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "test": "node tests/smoke.js",
+    "trace": "node tools/gen-module.js && node tools/export-all.js ./mascots",
+    "svg": "node tools/export-all.js ./mascots"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0",
+    "pngjs": "^7.0.0"
+  }
+}
