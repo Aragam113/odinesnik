@@ -48,11 +48,20 @@ function vIvSession(){
       '<div class="opts"><button class="opt" data-iv-show="1">'+
         '<span class="opt-k">→</span><span>Я ответил, показать разбор</span></button></div>';
   } else {
+    /* Разбор: сначала эталон, потом пункты для самопроверки, потом карточки.
+       У вопросов про опыт (t:"hr") эталона по существу быть не может —
+       там разбирается, что именно проверяет интервьюер. */
     body = '<div class="recall-a">'+
-        (seeCards ? '<b>К этому вопросу относятся карточки:</b><div class="pill-row" style="margin-top:8px">'+seeCards+'</div>'
-                  : '<b>Прямой карточки в базе нет</b> — вопрос из практики, отвечай своим опытом.')+
-        (q.f && q.f.length ? '<div style="margin-top:12px"><b>Уточняющие вопросы, которые задают следом:</b><br>'+
-           q.f.map(function(x){ return '· ' + esc(x); }).join('<br>')+'</div>' : '')+
+        (q.a ? '<b>'+(q.t === "hr" ? "Что здесь проверяют" : "Эталонный ответ")+'</b>'+
+               '<div class="iv-answer">'+q.a+'</div>' : '')+
+        (q.k && q.k.length
+          ? '<div class="iv-keys"><b>Должно прозвучать:</b><ul>'+
+              q.k.map(function(x){ return '<li>'+x+'</li>'; }).join('')+
+            '</ul></div>' : '')+
+        (q.miss ? '<div class="iv-miss"><b>Частая ошибка:</b> '+q.miss+'</div>' : '')+
+        (seeCards ? '<div class="iv-cards"><b>Карточки по теме:</b>'+
+                    '<div class="pill-row" style="margin-top:8px">'+seeCards+'</div></div>'
+                  : (q.a ? '' : '<b>Разбора пока нет</b> — вопрос из практики, отвечай своим опытом.'))+
       '</div>'+
       '<div class="ex-type" style="margin-top:6px">Оцени себя честно</div>'+
       '<div class="opts">'+ IV_MARKS.map(function(m){

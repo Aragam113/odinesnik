@@ -437,3 +437,17 @@ pre.code{
 .check-box .opt{width:100%; text-align:left}
 .book .src ul{margin:0; padding-left:18px}
 .book .src li{font-size:13px; color:var(--ink-3)}
+
+/* ==========================================================
+   РАЗБОР ВОПРОСА В СОБЕСЕДОВАНИИ
+   ========================================================== */
+.iv-answer{margin:6px 0 0; line-height:1.6; color:var(--ink)}
+.iv-answer code{background:var(--panel-3); border-radius:6px; padding:1px 5px;
+  font:600 13px/1.4 "JetBrains Mono", ui-monospace, monospace}
+.iv-keys{margin-top:14px}
+.iv-keys ul{margin:6px 0 0; padding-left:20px; list-style:disc}
+.iv-keys li{line-height:1.5; color:var(--ink-2); margin-bottom:3px}
+.iv-miss{margin-top:14px; padding:10px 12px; border-radius:var(--r-sm);
+  background:var(--no-soft); border:2px solid var(--no-line); line-height:1.5}
+.iv-miss b{color:var(--no)}
+.iv-cards{margin-top:14px}
