@@ -123,8 +123,17 @@ function parseShapes(svg) {
   return shapes;
 }
 
-const lum = hex => {
+/* Figma пишет часть заливок словом, а не кодом: «white» вместо #ffffff.
+   Без этого яркость получалась NaN, и белки глаз не находились вовсе. */
+const NAMED = {
+  white: '#ffffff', black: '#000000', red: '#ff0000', green: '#008000',
+  blue: '#0000ff', gray: '#808080', grey: '#808080', silver: '#c0c0c0',
+  yellow: '#ffff00', orange: '#ffa500', none: '#000000'
+};
+const lum = raw => {
+  const hex = NAMED[String(raw).trim().toLowerCase()] || String(raw);
   const c = hex.replace('#', '');
+  if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/i.test(c)) return 0;
   const v = c.length === 3 ? c.split('').map(x => parseInt(x + x, 16)) : [0, 2, 4].map(i => parseInt(c.substr(i, 2), 16));
   return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 };

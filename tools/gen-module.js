@@ -8,7 +8,8 @@ const path = require('path');
 const { figs } = require('./build-traced.js');
 const { importCharacter } = require('./figma-import.js');
 
-const FG = f => path.join(__dirname, 'figma', f);
+/* у каждого персонажа своя папка: имена файлов из Figma совпадают */
+const FG = (who, f) => path.join(__dirname, 'figma', who, f);
 
 /* Правленые персонажи. Ключ состояния = имя файла, дальше настроения
    собираются из этих состояний по слоям. */
@@ -17,8 +18,9 @@ const FIGMA = {
     name: 'byte',
     ref: 'default',
     files: {
-      default: FG('Default.svg'), blink: FG('Blink.svg'), cheer: FG('Cheer.svg'),
-      happy:   FG('Happy.svg'),   sad:   FG('Sad.svg')
+      default: FG('byte', 'Default.svg'), blink: FG('byte', 'Blink.svg'),
+      cheer:   FG('byte', 'Cheer.svg'),   happy: FG('byte', 'Happy.svg'),
+      sad:     FG('byte', 'Sad.svg')
     },
     /* body берётся из состояния, остальное — послойно */
     moods: {
@@ -31,6 +33,30 @@ const FIGMA = {
       think:   { body: 'default', brows: '@down',   eyes: '@squint', mouth: '@flat'   },
       wow:     { body: 'default', brows: 'happy',   eyes: 'happy',   mouth: '@o'      },
       neutral: { body: 'default', brows: 'default', eyes: 'default', mouth: '@flat'   }
+    }
+  },
+
+  sanych: {
+    name: 'sanych',
+    ref: 'default',
+    /* файла Sad для Саныча нет — грустное состояние выводится
+       трансформацией нарисованных слоёв, своего рисунка не добавляем */
+    files: {
+      default: FG('sanych', 'Default.svg'), blink: FG('sanych', 'Blink.svg'),
+      cheer:   FG('sanych', 'Cheer.svg'),   happy: FG('sanych', 'Happy.svg')
+    },
+    moods: {
+      idle:    { body: 'default', brows: 'default', eyes: 'default', mouth: 'default' },
+      blink:   { body: 'default', brows: 'default', eyes: 'blink',   mouth: 'default' },
+      cheer:   { body: 'cheer',   brows: 'cheer',   eyes: 'cheer',   mouth: 'cheer'   },
+      happy:   { body: 'default', brows: 'happy',   eyes: 'happy',   mouth: 'happy'   },
+      sad:     { body: 'default', brows: '@worried', eyes: '@sad',   mouth: '@frown'  },
+      /* Рот у Саныча — это усы: крупная серая фигура. Производные формы
+         (@flat, @o) рисуются её цветом и размером и дают поперёк лица
+         серую полосу или овал. Поэтому здесь только нарисованные рты. */
+      think:   { body: 'default', brows: '@down',   eyes: '@squint', mouth: 'default' },
+      wow:     { body: 'default', brows: 'happy',   eyes: '@wide',   mouth: 'cheer'   },
+      neutral: { body: 'default', brows: 'default', eyes: 'default', mouth: 'default' }
     }
   }
 };
