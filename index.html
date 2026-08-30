@@ -523,6 +523,10 @@ pre.code{
 .ex-wrong em{display:block; margin-top:5px; font-style:normal; font-size:13.5px; color:var(--ink-3)}
 .ex-see .pill-row{gap:6px}
 
+/* на узком экране в ряду три кнопки — длинную подпись сокращаем */
+.lbl-sm{display:none}
+@media (max-width:620px){ .lbl-lg{display:none} .lbl-sm{display:inline} }
+
 </style>
 </head>
 <body>
@@ -5650,7 +5654,10 @@ function checkAnswer(){
     if(LS.combo > 0 && LS.combo % 5 === 0 && !S.noHearts && S.hearts < 5){
       S.hearts++; LS.gainedHeart = true; save();
     }
-    if(e.type !== "recall"){
+    /* Ответ, подсмотренный в разборе, знанием не считается: интервал
+       повторения не растёт и карточка остаётся в разборе ошибок.
+       Иначе можно пройти урок на сто процентов, ничего не выучив. */
+    if(e.type !== "recall" && !LS.peeked){
       var s = S.srs[e.k] || {b:0};
       s.b = Math.min(5, (s.b||0)+1); s.d = Date.now() + [0,1,3,8,21,45][s.b]*864e5;
       S.srs[e.k] = s;
@@ -5682,7 +5689,7 @@ function nextEx(){
   var back = LS.requeued[e.k] || 0;
   if(!LS.correct && e.type !== "recall" && back < 2){ LS.requeued[e.k] = back + 1; LS.queue.push(e); }
   else LS.done++;
-  LS.pick = null; LS.checked = false; LS.correct = false;
+  LS.pick = null; LS.checked = false; LS.correct = false; LS.peeked = false;
   LS.matched = {}; LS.matchPick = null; LS.built = []; LS.buildHint = "";
   if(!S.noHearts && hearts() === 0){ SFX.fail(); screen = "failed"; render(); return; }
   if(!LS.queue.length){ finishLesson(); return; }
@@ -6235,6 +6242,8 @@ function vLesson(){
   } else {
     bar = '<div class="fb idle"><div class="fb-in">'+
       '<button class="btn ghost" data-skip="1">Пропустить</button>'+
+      '<button class="btn ghost" data-explain="1">'+
+        '<span class="lbl-lg">Разобрать решение</span><span class="lbl-sm">Разбор</span></button>'+
       '<button class="btn primary" data-check="1"'+(canCheck?"":" disabled")+'>Проверить</button>'+
       '</div></div>';
   }
@@ -6641,7 +6650,10 @@ document.addEventListener("click", function(e){
   if(A("data-quit")){ if(confirm("Не бросай на середине — прогресс этого подхода не сохранится. Точно выйти?")){ screen = "path"; LS = null; render(); } return; }
   if(A("data-check")){ checkAnswer(); return; }
   /* ---- разбор задания ---- */
-  if(A("data-explain")){ exModal = currentEx(); render(); return; }
+  if(A("data-explain")){
+    if(LS && !LS.checked) LS.peeked = true;
+    exModal = currentEx(); render(); return;
+  }
   if(A("data-exclose")){ exModal = null; render(); return; }
   if(A("data-next")){ nextEx(); return; }
   if(A("data-skip")){ LS.pick = null; LS.checked = true; LS.correct = false;

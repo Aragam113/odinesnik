@@ -122,7 +122,10 @@ function checkAnswer(){
     if(LS.combo > 0 && LS.combo % 5 === 0 && !S.noHearts && S.hearts < 5){
       S.hearts++; LS.gainedHeart = true; save();
     }
-    if(e.type !== "recall"){
+    /* Ответ, подсмотренный в разборе, знанием не считается: интервал
+       повторения не растёт и карточка остаётся в разборе ошибок.
+       Иначе можно пройти урок на сто процентов, ничего не выучив. */
+    if(e.type !== "recall" && !LS.peeked){
       var s = S.srs[e.k] || {b:0};
       s.b = Math.min(5, (s.b||0)+1); s.d = Date.now() + [0,1,3,8,21,45][s.b]*864e5;
       S.srs[e.k] = s;
@@ -154,7 +157,7 @@ function nextEx(){
   var back = LS.requeued[e.k] || 0;
   if(!LS.correct && e.type !== "recall" && back < 2){ LS.requeued[e.k] = back + 1; LS.queue.push(e); }
   else LS.done++;
-  LS.pick = null; LS.checked = false; LS.correct = false;
+  LS.pick = null; LS.checked = false; LS.correct = false; LS.peeked = false;
   LS.matched = {}; LS.matchPick = null; LS.built = []; LS.buildHint = "";
   if(!S.noHearts && hearts() === 0){ SFX.fail(); screen = "failed"; render(); return; }
   if(!LS.queue.length){ finishLesson(); return; }

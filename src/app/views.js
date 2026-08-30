@@ -144,6 +144,8 @@ function vLesson(){
   } else {
     bar = '<div class="fb idle"><div class="fb-in">'+
       '<button class="btn ghost" data-skip="1">Пропустить</button>'+
+      '<button class="btn ghost" data-explain="1">'+
+        '<span class="lbl-lg">Разобрать решение</span><span class="lbl-sm">Разбор</span></button>'+
       '<button class="btn primary" data-check="1"'+(canCheck?"":" disabled")+'>Проверить</button>'+
       '</div></div>';
   }

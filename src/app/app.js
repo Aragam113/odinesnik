@@ -208,7 +208,10 @@ document.addEventListener("click", function(e){
   if(A("data-quit")){ if(confirm("Не бросай на середине — прогресс этого подхода не сохранится. Точно выйти?")){ screen = "path"; LS = null; render(); } return; }
   if(A("data-check")){ checkAnswer(); return; }
   /* ---- разбор задания ---- */
-  if(A("data-explain")){ exModal = currentEx(); render(); return; }
+  if(A("data-explain")){
+    if(LS && !LS.checked) LS.peeked = true;
+    exModal = currentEx(); render(); return;
+  }
   if(A("data-exclose")){ exModal = null; render(); return; }
   if(A("data-next")){ nextEx(); return; }
   if(A("data-skip")){ LS.pick = null; LS.checked = true; LS.correct = false;
