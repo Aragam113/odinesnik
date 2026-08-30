@@ -41,10 +41,20 @@ step('шапка с маскотом и счётчиками', () => {
   if (!A.q('.hud .brand svg')) throw new Error('нет маскота');
   if (A.all('.chip-stat').length < 3) throw new Error('счётчиков ' + A.all('.chip-stat').length);
 });
-step('шесть вкладок, включая тренажёр запросов', () => {
+step('пять вкладок: запросы и собес объединены', () => {
   const n = A.all('.tab').length;
-  if (n !== 6) throw new Error('вкладок ' + n);
-  if (!A.q('[data-tab="ql"]')) throw new Error('нет вкладки тренажёра запросов');
+  if (n !== 5) throw new Error('вкладок ' + n);
+  if (!A.q('[data-tab="train"]')) throw new Error('нет вкладки тренировок');
+});
+step('переключатель режима меняет содержимое', () => {
+  A.click('[data-tab="train"]');
+  if (!A.q('.switcher')) throw new Error('нет переключателя');
+  if (!A.q('[data-qlstart]')) throw new Error('по умолчанию не запросы');
+  A.click('[data-train="iv"]');
+  if (!A.q('[data-iv-start]')) throw new Error('не переключилось на собес');
+  if (A.q('[data-qlstart]')) throw new Error('запросы остались на экране');
+  A.click('[data-train="ql"]');
+  A.click('[data-tab="path"]');          /* дальше проверяется путь */
 });
 step('путь: 9 разделов', () => { if (A.all('.unit').length !== 9) throw new Error('разделов ' + A.all('.unit').length); });
 step('уроков на пути', () => {
@@ -60,7 +70,7 @@ step('на первом узле бейдж «Старт»', () => { if (!A.q('.
 
 /* ---------- переключение вкладок ---------- */
 head('=== вкладки ===');
-['practice', 'ql', 'iv', 'ref', 'stats', 'path'].forEach(t => {
+['practice', 'train', 'ref', 'stats', 'path'].forEach(t => {
   step('вкладка ' + t, () => {
     A.click('[data-tab="' + t + '"]');
     if (!A.q('#view').innerHTML.trim()) throw new Error('пусто');
@@ -257,7 +267,8 @@ head('=== собеседование ===');
 {
   const B = api(boot(null));
   step('банк вопросов загружен', () => {
-    B.click('[data-tab="iv"]');
+    B.click('[data-tab="train"]');
+    B.click('[data-train="iv"]');
     if (!/вопросов в банке/.test(B.q('#view').textContent)) throw new Error('нет счётчика банка');
     if (B.all('[data-iv-start]').length !== 3) throw new Error('стадий ' + B.all('[data-iv-start]').length);
   });

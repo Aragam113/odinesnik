@@ -53,10 +53,8 @@ function qlStart(kind){
 
 /* ---------- экран тренажёра ---------- */
 function vQL(){
-  var h = '<div class="sec-h"><span class="eyebrow">Отдельный тренажёр</span>' +
-    '<h2>Запросы</h2>' +
-    '<p>Половина работы одинэсника — запросы. Сначала короткая теория, ' +
-    'потом четыре вида практики на одном и том же материале.</p></div>';
+  var h = '<p class="mode-intro">Половина работы одинэсника — запросы. Сначала короткая теория, ' +
+    'потом четыре вида практики на одном и том же материале.</p>';
 
   /* теория; у раздела может быть одна или несколько интерактивных схем */
   h += '<div class="card" style="padding:0 18px">' + QTHEORY.map(function(a){
@@ -110,4 +108,44 @@ function vQL(){
   }).join("");
 
   return h;
+}
+
+/* =====================================================================
+   ВКЛАДКА «ТРЕНИРОВКИ»
+   Два режима под одним переключателем: тренажёр запросов и симуляция
+   собеседования. Оба — тренировка на готовом материале, в отличие от
+   пути, где материал проходится впервые.
+   ===================================================================== */
+/* режим живёт в состоянии, чтобы переживать перезагрузку */
+function trainMode(){ return (S && S.trainMode) || "ql"; }
+
+var TRAIN_MODES = [
+  {id:"ql", t:"Запросы",       sub:"теория и практика",
+   ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<ellipse cx="12" cy="6" rx="7.5" ry="3"/>' +
+      '<path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/>' +
+      '<path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>'},
+  {id:"iv", t:"Собеседование", sub:"вопросы с интервью",
+   ic:'<svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/>' +
+      '<circle cx="9" cy="10" r="1.4" fill="#fff"/><circle cx="12" cy="10" r="1.4" fill="#fff"/>' +
+      '<circle cx="15" cy="10" r="1.4" fill="#fff"/></svg>'}
+];
+
+function vTrain(){
+  var mode = trainMode();
+  var i = TRAIN_MODES.map(function(m){ return m.id; }).indexOf(mode);
+  if(i < 0){ mode = "ql"; i = 0; }
+
+  var sw = '<div class="switcher" role="tablist" aria-label="Режим тренировки" ' +
+    'style="--n:' + TRAIN_MODES.length + ';--i:' + i + '">' +
+    '<span class="switcher-ind" aria-hidden="true"></span>' +
+    TRAIN_MODES.map(function(m, j){
+      return '<button class="sw' + (j === i ? " on" : "") + '" role="tab" ' +
+        'aria-selected="' + (j === i) + '" data-train="' + m.id + '">' +
+        m.ic + '<span class="sw-t">' + esc(m.t) + '</span>' +
+        '<span class="sw-s">' + esc(m.sub) + '</span></button>';
+    }).join("") + '</div>';
+
+  return sw + '<div class="train-body">' + (mode === "iv" ? vIvHome() : vQL()) + '</div>';
 }

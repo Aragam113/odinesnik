@@ -514,6 +514,46 @@ pre.code{
 .ql-dia h4{font-size:15px; margin:0 0 4px}
 .ql-dia .dia-say{margin-top:10px}
 
+/* ==========================================================
+   ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТРЕНИРОВКИ
+   Индикатор едет за выбором, а не перерисовывается: так видно,
+   что это один элемент с двумя положениями, а не две кнопки.
+   ========================================================== */
+.switcher{
+  position:relative; display:grid; grid-template-columns:repeat(var(--n),1fr);
+  padding:5px; margin-bottom:18px;
+  background:var(--panel-2); border:2px solid var(--line);
+  border-radius:calc(var(--r) + 3px);
+}
+.switcher-ind{
+  position:absolute; top:5px; bottom:5px; left:5px;
+  width:calc((100% - 10px) / var(--n));
+  transform:translateX(calc(var(--i) * 100%));
+  background:var(--panel); border:2px solid var(--line-2);
+  border-radius:var(--r); box-shadow:0 3px 0 var(--line-2);
+  transition:transform .24s var(--spring);
+}
+.sw{
+  position:relative; z-index:1; background:none; border:none; cursor:pointer;
+  padding:11px 8px 12px; display:flex; flex-direction:column; align-items:center; gap:3px;
+  color:var(--ink-3); font:inherit; transition:color .16s;
+}
+/* иконка на обводке объявляет fill="none" атрибутом — правило его перебивало */
+.sw svg{width:22px; height:22px}
+.sw svg:not([fill="none"]){fill:currentColor}
+.sw-t{font-size:14.5px; font-weight:800; letter-spacing:-.01em}
+.sw-s{font-size:11.5px; font-weight:600; opacity:.8}
+.sw:hover{color:var(--ink-2)}
+.sw.on{color:var(--ink)}
+.sw.on svg{color:var(--brand)}
+.sw:focus-visible{outline:3px solid var(--info); outline-offset:2px; border-radius:var(--r)}
+@media (max-width:420px){
+  .sw-s{display:none}
+  .sw{padding:10px 6px}
+}
+@media (prefers-reduced-motion:reduce){.switcher-ind{transition:none}}
+.mode-intro{color:var(--ink-2); font-size:14.5px; line-height:1.55; margin:0 0 16px}
+
 </style>
 
 <div class="app">
@@ -6474,120 +6514,6 @@ function vBook(){
 }
 
 /* =====================================================================
-   ТРЕНАЖЁР ЗАПРОСОВ
-   Экран с теорией и четырьмя видами практики. Сами задания прогоняются
-   через обычную механику урока: те же жизни, комбо, XP, разбор и звук.
-   Поэтому здесь только сборка очереди и экран запуска.
-   ===================================================================== */
-
-var qlOpen = "";        /* какой раздел теории раскрыт */
-
-/* задание тренажёра → упражнение урока */
-function qlEx(t, i){
-  if(t.kind === "make"){
-    return {k:"ql-make|" + i, type:"build", q:t.task,
-            tokens:t.tokens, extra:t.extra || [], set:!!t.set, w:t.w};
-  }
-  /* выбор варианта: пояснения к неверным едут вместе с вариантами */
-  var opts = t.o.map(function(x, j){
-    return {t:x, c: j === t.a ? 1 : 0, n: (t.on && t.on[j]) || ""};
-  });
-  return {k:"ql-" + t.kind + "|" + i, type:"choose", q:t.task,
-          code:t.code || "", o:opts, a:t.a, w:t.w, hint:""};
-}
-
-function qlPool(kind){
-  var out = [];
-  QTASKS.forEach(function(t, i){ if(t.kind === kind) out.push(qlEx(t, i)); });
-  return out;
-}
-
-function qlStart(kind){
-  if(hearts() === 0 && !S.noHearts){ screen = "nohearts"; render(); return; }
-  var k = QL_KINDS.filter(function(x){ return x.id === kind; })[0];
-  if(!k) return;
-  if(!S.runs) S.runs = {};
-  var id = "ql-" + kind;
-  S.runs[id] = (S.runs[id] || 0) + 1;
-  var rnd = seed(id + "#" + S.runs[id] + "#" + crowns(id));
-  /* варианты внутри задания тасуются, иначе верный всегда стоит первым */
-  var list = shuffle(qlPool(kind), rnd).map(function(e){
-    if(e.type !== "choose") return e;
-    var o = shuffle(e.o, rnd), a = 0;
-    for(var i = 0; i < o.length; i++) if(o[i].c) a = i;
-    return {k:e.k, type:e.type, q:e.q, code:e.code, o:o, a:a, w:e.w, hint:e.hint};
-  });
-  LS = {
-    idx: -1, sec: null, lesson: {id:id, t:k.t, kind:"ql"},
-    queue: list, done: 0, total: list.length, wrong: 0, combo: 0, bestCombo: 0,
-    pick: null, checked: false, correct: false, peeked: false,
-    matched: {}, matchPick: null, built: [], startedAt: Date.now()
-  };
-  screen = "lesson"; render();
-}
-
-/* ---------- экран тренажёра ---------- */
-function vQL(){
-  var h = '<div class="sec-h"><span class="eyebrow">Отдельный тренажёр</span>' +
-    '<h2>Запросы</h2>' +
-    '<p>Половина работы одинэсника — запросы. Сначала короткая теория, ' +
-    'потом четыре вида практики на одном и том же материале.</p></div>';
-
-  /* теория; у раздела может быть одна или несколько интерактивных схем */
-  h += '<div class="card" style="padding:0 18px">' + QTHEORY.map(function(a){
-    var open = qlOpen === a.id;
-    var body = "";
-    if(open){
-      body = a.html;
-      (a.dia || []).forEach(function(d, di){
-        var pre = "ql-" + a.id + "-" + di + "|";
-        var sel = null;
-        if(bookNode && bookNode.indexOf(pre) === 0){
-          var nid = bookNode.slice(pre.length);
-          if(d.say[nid]) sel = nid;
-        }
-        body += '<div class="ql-dia">' +
-          '<h4>' + esc(d.t) + '</h4>' +
-          '<p class="dia-hint">Нажми на любой блок — расскажу, что это и зачем.</p>' +
-          '<div class="dia-wrap">' + bookDiagram(d, sel, pre) + '</div>' +
-          '<div class="dia-say' + (sel ? " on" : "") + '">' +
-            (sel ? '<b>' + esc((d.nodes.filter(function(n){ return n.id === sel; })[0] || {}).t) + '</b>' +
-                   '<p>' + d.say[sel] + '</p>'
-                 : '<p class="muted">Пока ничего не выбрано.</p>') +
-          '</div></div>';
-      });
-      if(a.after) body += a.after;
-    }
-    return '<div class="acc-item">' +
-      '<button class="acc-btn" data-qlopen="' + a.id + '"><span class="sign">' + (open ? "−" : "+") + '</span>' +
-      '<span>' + esc(a.t) + '</span></button>' +
-      (open ? '<div class="acc-body">' + body + '</div>' : '') +
-    '</div>';
-  }).join("") + '</div>';
-
-  /* практика */
-  h += '<div class="sec-h" style="margin-top:8px"><h2 style="font-size:20px">Практика</h2>' +
-       '<p>Каждый блок — все задания своего вида вперемешку. Жизни, разбор и звук те же, что в уроке.</p></div>';
-
-  h += QL_KINDS.map(function(k){
-    var n = QTASKS.filter(function(t){ return t.kind === k.id; }).length;
-    var cr = crowns("ql-" + k.id);
-    return '<button class="card iv-stage" data-qlstart="' + k.id + '" ' +
-      'style="width:100%;text-align:left;display:block;border-left:6px solid ' + k.c + '">' +
-      '<div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px">' +
-        '<div style="min-width:0"><h3 style="font-size:18px">' + esc(k.t) + '</h3>' +
-        '<p style="font-size:14px;color:var(--ink-2);margin-top:4px">' + esc(k.sub) + '</p></div>' +
-        '<span class="tag y">' + n + '</span>' +
-      '</div>' +
-      (cr ? '<p style="font-size:12.5px;color:var(--gold);margin-top:10px">' + repeat("★", cr) + '</p>'
-          : '<p style="font-size:12.5px;color:var(--ink-3);margin-top:10px">ещё не пройден</p>') +
-    '</button>';
-  }).join("");
-
-  return h;
-}
-
-/* =====================================================================
    РАЗБОР ЗАДАНИЯ
    Модальное окно с верным ответом и объяснением, почему он верен —
    и почему неверны остальные варианты. Последнее и есть самое полезное:
@@ -6925,10 +6851,8 @@ function vIvHome(){
   var byStage = {};
   IVBANK.forEach(function(q){ byStage[q.s] = (byStage[q.s] || 0) + 1; });
 
-  return '<div class="sec-h"><span class="eyebrow">Вопросы с реальных интервью</span>'+
-    '<h2>Собеседование</h2>'+
-    '<p>Банк собран из профессионального чата, где соискатели выкладывают вопросы сразу после интервью. '+
-    'Имён и названий компаний в базе нет — только сами вопросы.</p></div>'+
+  return '<p class="mode-intro">Банк собран из профессионального чата, где соискатели выкладывают вопросы сразу после интервью. '+
+    'Имён и названий компаний в базе нет — только сами вопросы.</p>'+
 
   '<div class="tile-row">'+
     '<div class="tile"><b style="color:var(--info)">'+total+'</b><span>вопросов в банке</span></div>'+
@@ -7032,6 +6956,158 @@ function vIvDone(){
       '<button class="btn" data-iv-quit="1">К списку стадий</button>'+
     '</div>'+
   '</div>';
+}
+
+/* =====================================================================
+   ТРЕНАЖЁР ЗАПРОСОВ
+   Экран с теорией и четырьмя видами практики. Сами задания прогоняются
+   через обычную механику урока: те же жизни, комбо, XP, разбор и звук.
+   Поэтому здесь только сборка очереди и экран запуска.
+   ===================================================================== */
+
+var qlOpen = "";        /* какой раздел теории раскрыт */
+
+/* задание тренажёра → упражнение урока */
+function qlEx(t, i){
+  if(t.kind === "make"){
+    return {k:"ql-make|" + i, type:"build", q:t.task,
+            tokens:t.tokens, extra:t.extra || [], set:!!t.set, w:t.w};
+  }
+  /* выбор варианта: пояснения к неверным едут вместе с вариантами */
+  var opts = t.o.map(function(x, j){
+    return {t:x, c: j === t.a ? 1 : 0, n: (t.on && t.on[j]) || ""};
+  });
+  return {k:"ql-" + t.kind + "|" + i, type:"choose", q:t.task,
+          code:t.code || "", o:opts, a:t.a, w:t.w, hint:""};
+}
+
+function qlPool(kind){
+  var out = [];
+  QTASKS.forEach(function(t, i){ if(t.kind === kind) out.push(qlEx(t, i)); });
+  return out;
+}
+
+function qlStart(kind){
+  if(hearts() === 0 && !S.noHearts){ screen = "nohearts"; render(); return; }
+  var k = QL_KINDS.filter(function(x){ return x.id === kind; })[0];
+  if(!k) return;
+  if(!S.runs) S.runs = {};
+  var id = "ql-" + kind;
+  S.runs[id] = (S.runs[id] || 0) + 1;
+  var rnd = seed(id + "#" + S.runs[id] + "#" + crowns(id));
+  /* варианты внутри задания тасуются, иначе верный всегда стоит первым */
+  var list = shuffle(qlPool(kind), rnd).map(function(e){
+    if(e.type !== "choose") return e;
+    var o = shuffle(e.o, rnd), a = 0;
+    for(var i = 0; i < o.length; i++) if(o[i].c) a = i;
+    return {k:e.k, type:e.type, q:e.q, code:e.code, o:o, a:a, w:e.w, hint:e.hint};
+  });
+  LS = {
+    idx: -1, sec: null, lesson: {id:id, t:k.t, kind:"ql"},
+    queue: list, done: 0, total: list.length, wrong: 0, combo: 0, bestCombo: 0,
+    pick: null, checked: false, correct: false, peeked: false,
+    matched: {}, matchPick: null, built: [], startedAt: Date.now()
+  };
+  screen = "lesson"; render();
+}
+
+/* ---------- экран тренажёра ---------- */
+function vQL(){
+  var h = '<p class="mode-intro">Половина работы одинэсника — запросы. Сначала короткая теория, ' +
+    'потом четыре вида практики на одном и том же материале.</p>';
+
+  /* теория; у раздела может быть одна или несколько интерактивных схем */
+  h += '<div class="card" style="padding:0 18px">' + QTHEORY.map(function(a){
+    var open = qlOpen === a.id;
+    var body = "";
+    if(open){
+      body = a.html;
+      (a.dia || []).forEach(function(d, di){
+        var pre = "ql-" + a.id + "-" + di + "|";
+        var sel = null;
+        if(bookNode && bookNode.indexOf(pre) === 0){
+          var nid = bookNode.slice(pre.length);
+          if(d.say[nid]) sel = nid;
+        }
+        body += '<div class="ql-dia">' +
+          '<h4>' + esc(d.t) + '</h4>' +
+          '<p class="dia-hint">Нажми на любой блок — расскажу, что это и зачем.</p>' +
+          '<div class="dia-wrap">' + bookDiagram(d, sel, pre) + '</div>' +
+          '<div class="dia-say' + (sel ? " on" : "") + '">' +
+            (sel ? '<b>' + esc((d.nodes.filter(function(n){ return n.id === sel; })[0] || {}).t) + '</b>' +
+                   '<p>' + d.say[sel] + '</p>'
+                 : '<p class="muted">Пока ничего не выбрано.</p>') +
+          '</div></div>';
+      });
+      if(a.after) body += a.after;
+    }
+    return '<div class="acc-item">' +
+      '<button class="acc-btn" data-qlopen="' + a.id + '"><span class="sign">' + (open ? "−" : "+") + '</span>' +
+      '<span>' + esc(a.t) + '</span></button>' +
+      (open ? '<div class="acc-body">' + body + '</div>' : '') +
+    '</div>';
+  }).join("") + '</div>';
+
+  /* практика */
+  h += '<div class="sec-h" style="margin-top:8px"><h2 style="font-size:20px">Практика</h2>' +
+       '<p>Каждый блок — все задания своего вида вперемешку. Жизни, разбор и звук те же, что в уроке.</p></div>';
+
+  h += QL_KINDS.map(function(k){
+    var n = QTASKS.filter(function(t){ return t.kind === k.id; }).length;
+    var cr = crowns("ql-" + k.id);
+    return '<button class="card iv-stage" data-qlstart="' + k.id + '" ' +
+      'style="width:100%;text-align:left;display:block;border-left:6px solid ' + k.c + '">' +
+      '<div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px">' +
+        '<div style="min-width:0"><h3 style="font-size:18px">' + esc(k.t) + '</h3>' +
+        '<p style="font-size:14px;color:var(--ink-2);margin-top:4px">' + esc(k.sub) + '</p></div>' +
+        '<span class="tag y">' + n + '</span>' +
+      '</div>' +
+      (cr ? '<p style="font-size:12.5px;color:var(--gold);margin-top:10px">' + repeat("★", cr) + '</p>'
+          : '<p style="font-size:12.5px;color:var(--ink-3);margin-top:10px">ещё не пройден</p>') +
+    '</button>';
+  }).join("");
+
+  return h;
+}
+
+/* =====================================================================
+   ВКЛАДКА «ТРЕНИРОВКИ»
+   Два режима под одним переключателем: тренажёр запросов и симуляция
+   собеседования. Оба — тренировка на готовом материале, в отличие от
+   пути, где материал проходится впервые.
+   ===================================================================== */
+/* режим живёт в состоянии, чтобы переживать перезагрузку */
+function trainMode(){ return (S && S.trainMode) || "ql"; }
+
+var TRAIN_MODES = [
+  {id:"ql", t:"Запросы",       sub:"теория и практика",
+   ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<ellipse cx="12" cy="6" rx="7.5" ry="3"/>' +
+      '<path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/>' +
+      '<path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>'},
+  {id:"iv", t:"Собеседование", sub:"вопросы с интервью",
+   ic:'<svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/>' +
+      '<circle cx="9" cy="10" r="1.4" fill="#fff"/><circle cx="12" cy="10" r="1.4" fill="#fff"/>' +
+      '<circle cx="15" cy="10" r="1.4" fill="#fff"/></svg>'}
+];
+
+function vTrain(){
+  var mode = trainMode();
+  var i = TRAIN_MODES.map(function(m){ return m.id; }).indexOf(mode);
+  if(i < 0){ mode = "ql"; i = 0; }
+
+  var sw = '<div class="switcher" role="tablist" aria-label="Режим тренировки" ' +
+    'style="--n:' + TRAIN_MODES.length + ';--i:' + i + '">' +
+    '<span class="switcher-ind" aria-hidden="true"></span>' +
+    TRAIN_MODES.map(function(m, j){
+      return '<button class="sw' + (j === i ? " on" : "") + '" role="tab" ' +
+        'aria-selected="' + (j === i) + '" data-train="' + m.id + '">' +
+        m.ic + '<span class="sw-t">' + esc(m.t) + '</span>' +
+        '<span class="sw-s">' + esc(m.sub) + '</span></button>';
+    }).join("") + '</div>';
+
+  return sw + '<div class="train-body">' + (mode === "iv" ? vIvHome() : vQL()) + '</div>';
 }
 
 /* ---------- ПРОФИЛЬ ---------- */
@@ -7182,8 +7258,7 @@ function vPractice(){
 var TABS = [
   {id:"path", n:"Путь", ic:'<svg viewBox="0 0 24 24"><path d="M4 20V8a4 4 0 014-4h4a3 3 0 010 6H9a3 3 0 000 6h4a4 4 0 014 4"/></svg>'},
   {id:"practice", n:"Разбор", ic:ICON.bolt},
-  {id:"ql", n:"Запросы", ic:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>'},
-  {id:"iv", n:"Собес", ic:'<svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/><circle cx="9" cy="10" r="1.4" fill="#fff"/><circle cx="12" cy="10" r="1.4" fill="#fff"/><circle cx="15" cy="10" r="1.4" fill="#fff"/></svg>'},
+  {id:"train", n:"Тренировки", ic:'<svg viewBox="0 0 24 24"><rect x="4" y="7.5" width="4" height="9" rx="1.6"/><rect x="16" y="7.5" width="4" height="9" rx="1.6"/><rect x="7.4" y="10.4" width="9.2" height="3.2" rx="1.4"/><rect x="1.6" y="10" width="2.6" height="4" rx="1.1"/><rect x="19.8" y="10" width="2.6" height="4" rx="1.1"/></svg>'},
   {id:"ref", n:"Справочник", ic:'<svg viewBox="0 0 24 24"><path d="M5 4h9a4 4 0 014 4v12H9a4 4 0 01-4-4z"/><path d="M14 4h5v16" fill="none" stroke="currentColor" stroke-width="2"/></svg>'},
   {id:"stats", n:"Профиль", ic:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0z"/></svg>'}
 ];
@@ -7201,7 +7276,8 @@ function renderHUD(){
 function renderTabs(){
   $("#tabs").innerHTML = '<div class="tabs-in">'+ TABS.map(function(t){
     var b = t.id === "practice" && S.mistakes.length ? '<span class="badge">'+S.mistakes.length+'</span>' : '';
-    var cur = screen === t.id || (t.id === "iv" && (screen === "ivhome" || screen === "iv" || screen === "ivdone"));
+    var cur = screen === t.id ||
+      (t.id === "train" && ["train", "ivhome", "iv", "ivdone", "ql"].indexOf(screen) >= 0);
     return '<button class="tab" data-tab="'+t.id+'" aria-current="'+cur+'">'+t.ic+b+'<span>'+t.n+'</span></button>';
   }).join("")+'</div>';
 }
@@ -7226,10 +7302,9 @@ function render(){
   main.classList.remove("hidden"); hud.classList.remove("hidden"); tabs.classList.remove("hidden");
   var v = $("#view");
   v.innerHTML = screen === "path" ? vPath()
-              : screen === "ql" ? vQL()
+              : screen === "train" ? vTrain()
               : screen === "book" ? vBook()
               : screen === "practice" ? vPractice()
-              : screen === "ivhome" ? vIvHome()
               : screen === "ref" ? vRef() : vStats();
   renderHUD(); renderTabs();
   RIG.scan();
@@ -7241,14 +7316,15 @@ document.addEventListener("click", function(e){
   if(!t) return;
   var A = function(n){ return t.getAttribute(n); };
 
-  if(A("data-tab")){ screen = A("data-tab") === "iv" ? "ivhome" : A("data-tab"); render(); var mn = $("#main"); if(mn) mn.scrollTop = 0; try{ window.scrollTo(0,0); }catch(e){} return; }
+  if(A("data-tab")){ screen = A("data-tab"); render(); var mn = $("#main"); if(mn) mn.scrollTop = 0; try{ window.scrollTo(0,0); }catch(e){} return; }
   /* ---- тренажёр запросов ---- */
+  if(A("data-train")){ S.trainMode = A("data-train"); save(); render(); return; }
   if(A("data-qlopen")){ qlOpen = qlOpen === A("data-qlopen") ? "" : A("data-qlopen"); render(); return; }
   if(A("data-qlstart")){ qlStart(A("data-qlstart")); return; }
   if(A("data-lesson") !== null && A("data-lesson") !== undefined){ startLesson(+A("data-lesson")); return; }
   if(A("data-quit")){
     if(confirm("Не бросай на середине — прогресс этого подхода не сохранится. Точно выйти?")){
-      screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "ql" : "path";
+      screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "train" : "path";
       LS = null; render();
     }
     return;
@@ -7267,14 +7343,14 @@ document.addEventListener("click", function(e){
     save(); render(); return; }
   if(A("data-back")){
     /* из тренажёра возвращаемся в тренажёр, а не на путь */
-    screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "ql" : "path";
+    screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "train" : "path";
     LS = null; render(); return;
   }
   if(A("data-mistakes")){ startMistakes(); return; }
   if(A("data-iv-start")){ ivStart(A("data-iv-start")); return; }
   if(A("data-iv-show")){ IVS.shown = true; render(); return; }
   if(A("data-iv-mark")){ ivRate(A("data-iv-mark")); return; }
-  if(A("data-iv-quit")){ screen = "ivhome"; IVS = null; render(); return; }
+  if(A("data-iv-quit")){ screen = "train"; IVS = null; render(); return; }
 
   var p = A("data-pick");
   if(p !== null && p !== undefined && !LS.checked){ LS.pick = +p; render(); return; }

@@ -146,8 +146,7 @@ function vPractice(){
 var TABS = [
   {id:"path", n:"Путь", ic:'<svg viewBox="0 0 24 24"><path d="M4 20V8a4 4 0 014-4h4a3 3 0 010 6H9a3 3 0 000 6h4a4 4 0 014 4"/></svg>'},
   {id:"practice", n:"Разбор", ic:ICON.bolt},
-  {id:"ql", n:"Запросы", ic:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>'},
-  {id:"iv", n:"Собес", ic:'<svg viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4z"/><circle cx="9" cy="10" r="1.4" fill="#fff"/><circle cx="12" cy="10" r="1.4" fill="#fff"/><circle cx="15" cy="10" r="1.4" fill="#fff"/></svg>'},
+  {id:"train", n:"Тренировки", ic:'<svg viewBox="0 0 24 24"><rect x="4" y="7.5" width="4" height="9" rx="1.6"/><rect x="16" y="7.5" width="4" height="9" rx="1.6"/><rect x="7.4" y="10.4" width="9.2" height="3.2" rx="1.4"/><rect x="1.6" y="10" width="2.6" height="4" rx="1.1"/><rect x="19.8" y="10" width="2.6" height="4" rx="1.1"/></svg>'},
   {id:"ref", n:"Справочник", ic:'<svg viewBox="0 0 24 24"><path d="M5 4h9a4 4 0 014 4v12H9a4 4 0 01-4-4z"/><path d="M14 4h5v16" fill="none" stroke="currentColor" stroke-width="2"/></svg>'},
   {id:"stats", n:"Профиль", ic:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0z"/></svg>'}
 ];
@@ -165,7 +164,8 @@ function renderHUD(){
 function renderTabs(){
   $("#tabs").innerHTML = '<div class="tabs-in">'+ TABS.map(function(t){
     var b = t.id === "practice" && S.mistakes.length ? '<span class="badge">'+S.mistakes.length+'</span>' : '';
-    var cur = screen === t.id || (t.id === "iv" && (screen === "ivhome" || screen === "iv" || screen === "ivdone"));
+    var cur = screen === t.id ||
+      (t.id === "train" && ["train", "ivhome", "iv", "ivdone", "ql"].indexOf(screen) >= 0);
     return '<button class="tab" data-tab="'+t.id+'" aria-current="'+cur+'">'+t.ic+b+'<span>'+t.n+'</span></button>';
   }).join("")+'</div>';
 }
@@ -190,10 +190,9 @@ function render(){
   main.classList.remove("hidden"); hud.classList.remove("hidden"); tabs.classList.remove("hidden");
   var v = $("#view");
   v.innerHTML = screen === "path" ? vPath()
-              : screen === "ql" ? vQL()
+              : screen === "train" ? vTrain()
               : screen === "book" ? vBook()
               : screen === "practice" ? vPractice()
-              : screen === "ivhome" ? vIvHome()
               : screen === "ref" ? vRef() : vStats();
   renderHUD(); renderTabs();
   RIG.scan();
@@ -205,14 +204,15 @@ document.addEventListener("click", function(e){
   if(!t) return;
   var A = function(n){ return t.getAttribute(n); };
 
-  if(A("data-tab")){ screen = A("data-tab") === "iv" ? "ivhome" : A("data-tab"); render(); var mn = $("#main"); if(mn) mn.scrollTop = 0; try{ window.scrollTo(0,0); }catch(e){} return; }
+  if(A("data-tab")){ screen = A("data-tab"); render(); var mn = $("#main"); if(mn) mn.scrollTop = 0; try{ window.scrollTo(0,0); }catch(e){} return; }
   /* ---- тренажёр запросов ---- */
+  if(A("data-train")){ S.trainMode = A("data-train"); save(); render(); return; }
   if(A("data-qlopen")){ qlOpen = qlOpen === A("data-qlopen") ? "" : A("data-qlopen"); render(); return; }
   if(A("data-qlstart")){ qlStart(A("data-qlstart")); return; }
   if(A("data-lesson") !== null && A("data-lesson") !== undefined){ startLesson(+A("data-lesson")); return; }
   if(A("data-quit")){
     if(confirm("Не бросай на середине — прогресс этого подхода не сохранится. Точно выйти?")){
-      screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "ql" : "path";
+      screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "train" : "path";
       LS = null; render();
     }
     return;
@@ -231,14 +231,14 @@ document.addEventListener("click", function(e){
     save(); render(); return; }
   if(A("data-back")){
     /* из тренажёра возвращаемся в тренажёр, а не на путь */
-    screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "ql" : "path";
+    screen = (LS && LS.lesson && LS.lesson.kind === "ql") ? "train" : "path";
     LS = null; render(); return;
   }
   if(A("data-mistakes")){ startMistakes(); return; }
   if(A("data-iv-start")){ ivStart(A("data-iv-start")); return; }
   if(A("data-iv-show")){ IVS.shown = true; render(); return; }
   if(A("data-iv-mark")){ ivRate(A("data-iv-mark")); return; }
-  if(A("data-iv-quit")){ screen = "ivhome"; IVS = null; render(); return; }
+  if(A("data-iv-quit")){ screen = "train"; IVS = null; render(); return; }
 
   var p = A("data-pick");
   if(p !== null && p !== undefined && !LS.checked){ LS.pick = +p; render(); return; }

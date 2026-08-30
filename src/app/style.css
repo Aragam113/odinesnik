@@ -510,3 +510,43 @@ pre.code{
 .ql-dia{margin:16px 0 4px; padding-top:14px; border-top:2px solid var(--line)}
 .ql-dia h4{font-size:15px; margin:0 0 4px}
 .ql-dia .dia-say{margin-top:10px}
+
+/* ==========================================================
+   ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ТРЕНИРОВКИ
+   Индикатор едет за выбором, а не перерисовывается: так видно,
+   что это один элемент с двумя положениями, а не две кнопки.
+   ========================================================== */
+.switcher{
+  position:relative; display:grid; grid-template-columns:repeat(var(--n),1fr);
+  padding:5px; margin-bottom:18px;
+  background:var(--panel-2); border:2px solid var(--line);
+  border-radius:calc(var(--r) + 3px);
+}
+.switcher-ind{
+  position:absolute; top:5px; bottom:5px; left:5px;
+  width:calc((100% - 10px) / var(--n));
+  transform:translateX(calc(var(--i) * 100%));
+  background:var(--panel); border:2px solid var(--line-2);
+  border-radius:var(--r); box-shadow:0 3px 0 var(--line-2);
+  transition:transform .24s var(--spring);
+}
+.sw{
+  position:relative; z-index:1; background:none; border:none; cursor:pointer;
+  padding:11px 8px 12px; display:flex; flex-direction:column; align-items:center; gap:3px;
+  color:var(--ink-3); font:inherit; transition:color .16s;
+}
+/* иконка на обводке объявляет fill="none" атрибутом — правило его перебивало */
+.sw svg{width:22px; height:22px}
+.sw svg:not([fill="none"]){fill:currentColor}
+.sw-t{font-size:14.5px; font-weight:800; letter-spacing:-.01em}
+.sw-s{font-size:11.5px; font-weight:600; opacity:.8}
+.sw:hover{color:var(--ink-2)}
+.sw.on{color:var(--ink)}
+.sw.on svg{color:var(--brand)}
+.sw:focus-visible{outline:3px solid var(--info); outline-offset:2px; border-radius:var(--r)}
+@media (max-width:420px){
+  .sw-s{display:none}
+  .sw{padding:10px 6px}
+}
+@media (prefers-reduced-motion:reduce){.switcher-ind{transition:none}}
+.mode-intro{color:var(--ink-2); font-size:14.5px; line-height:1.55; margin:0 0 16px}
