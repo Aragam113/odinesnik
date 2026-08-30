@@ -41,7 +41,11 @@ step('шапка с маскотом и счётчиками', () => {
   if (!A.q('.hud .brand svg')) throw new Error('нет маскота');
   if (A.all('.chip-stat').length < 3) throw new Error('счётчиков ' + A.all('.chip-stat').length);
 });
-step('пять вкладок', () => { if (A.all('.tab').length !== 5) throw new Error('вкладок ' + A.all('.tab').length); });
+step('шесть вкладок, включая тренажёр запросов', () => {
+  const n = A.all('.tab').length;
+  if (n !== 6) throw new Error('вкладок ' + n);
+  if (!A.q('[data-tab="ql"]')) throw new Error('нет вкладки тренажёра запросов');
+});
 step('путь: 9 разделов', () => { if (A.all('.unit').length !== 9) throw new Error('разделов ' + A.all('.unit').length); });
 step('уроков на пути', () => { const n = A.all('.node').length; if (n < 40) throw new Error('узлов ' + n); });
 step('открыт только первый узел', () => {
@@ -52,7 +56,7 @@ step('на первом узле бейдж «Старт»', () => { if (!A.q('.
 
 /* ---------- переключение вкладок ---------- */
 head('=== вкладки ===');
-['practice', 'iv', 'ref', 'stats', 'path'].forEach(t => {
+['practice', 'ql', 'iv', 'ref', 'stats', 'path'].forEach(t => {
   step('вкладка ' + t, () => {
     A.click('[data-tab="' + t + '"]');
     if (!A.q('#view').innerHTML.trim()) throw new Error('пусто');
