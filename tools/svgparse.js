@@ -100,7 +100,14 @@ function parseShapes(svg) {
   const shapes = [];
   for (const m of svg.matchAll(/<(path|circle|ellipse|rect)\b([^>]*)\/?>/g)) {
     const kind = m[1], a = attrs(m[0]);
-    const fill = (a.fill || '').toLowerCase();
+    let fill = (a.fill || '').toLowerCase();
+    const stroke = (a.stroke || '').toLowerCase();
+    const sw = +a.strokewidth || +a['stroke-width'] || 0;
+    /* Часть фигур из Figma нарисована обводкой, а не заливкой: брови
+       Саныча — это две линии stroke-width 12 без fill. Раньше такие
+       элементы выбрасывались целиком, и слой бровей оказывался пуст. */
+    const strokeOnly = (!fill || fill === 'none') && stroke && stroke !== 'none';
+    if (strokeOnly) fill = stroke;                       // цвет для классификации берём от обводки
     if (!fill || fill === 'none') continue;              // рамка выделения из Figma — без заливки
     let pts;
     if (kind === 'path') pts = samplePath(a.d || '');
@@ -115,10 +122,25 @@ function parseShapes(svg) {
       pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
     }
     if (!pts.length) continue;
-    const bb = bbox(pts);
+    let bb = bbox(pts);
+    /* у обводки видимая площадь задаётся толщиной линии, а не контуром:
+       открытый путь сам по себе имеет нулевую высоту */
+    let area = polyArea(pts);
+    if (strokeOnly && sw) {
+      const half = sw / 2;
+      bb = { x0: bb.x0 - half, y0: bb.y0 - half, x1: bb.x1 + half, y1: bb.y1 + half,
+             w: bb.w + sw, h: bb.h + sw, cx: bb.cx, cy: bb.cy };
+      let len = 0;
+      for (let k = 1; k < pts.length; k++)
+        len += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]);
+      area = Math.max(area, len * sw);
+    }
     if (!isFinite(bb.x0) || bb.w <= 0 || bb.h <= 0) continue;
-    shapes.push({ kind, src: m[0], fill, bb, area: polyArea(pts),
-                  dense: polyArea(pts) / Math.max(1, bb.w * bb.h) });
+    shapes.push({ kind, src: m[0], fill, bb, area,
+                  stroke: strokeOnly ? stroke : null,
+                  strokeWidth: strokeOnly ? sw : 0,
+                  linecap: strokeOnly ? (a['stroke-linecap'] || a.strokelinecap || 'butt') : null,
+                  dense: area / Math.max(1, bb.w * bb.h) });
   }
   return shapes;
 }

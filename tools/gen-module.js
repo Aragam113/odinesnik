@@ -58,6 +58,30 @@ const FIGMA = {
       wow:     { body: 'default', brows: 'happy',   eyes: '@wide',   mouth: 'cheer'   },
       neutral: { body: 'default', brows: 'default', eyes: 'default', mouth: 'default' }
     }
+  },
+  nina: {
+    name: 'nina',
+    ref: 'default',
+    /* Нина нарисована генератором tools/draw-nina.js в том же стиле,
+       что правленые в Figma Байт и Саныч: файла Sad нет, грусть
+       выводится трансформацией нарисованных слоёв. */
+    files: {
+      default: FG('nina', 'Default.svg'), blink: FG('nina', 'Blink.svg'),
+      cheer:   FG('nina', 'Cheer.svg'),   happy: FG('nina', 'Happy.svg'),
+      sad:     FG('nina', 'Sad.svg')
+    },
+    moods: {
+      idle:    { body: 'default', brows: 'default', eyes: 'default', mouth: 'default' },
+      blink:   { body: 'default', brows: 'default', eyes: 'blink',   mouth: 'default' },
+      cheer:   { body: 'default', brows: 'cheer',   eyes: 'cheer',   mouth: 'cheer'   },
+      happy:   { body: 'default', brows: 'happy',   eyes: 'happy',   mouth: 'happy'   },
+      /* очки живут в слое глаз, поэтому масштабирующие производные
+         состояния к ним не применяем — искажают оправу */
+      sad:     { body: 'default', brows: 'sad',     eyes: 'sad',     mouth: 'sad'     },
+      think:   { body: 'default', brows: '@down',   eyes: 'default', mouth: 'default' },
+      wow:     { body: 'default', brows: 'happy',   eyes: 'default', mouth: 'cheer'   },
+      neutral: { body: 'default', brows: 'default', eyes: 'default', mouth: 'default' }
+    }
   }
 };
 
@@ -234,8 +258,11 @@ var MASCOT = {
     if(!D) return '';
     var moodName = typeof opts.mood === "string" ? opts.mood : "idle";
     var m = typeof opts.mood === "string" ? MASCOT.mood(name, opts.mood) : (opts.mood || MOODS.idle);
-    var vb = D.vb[opts.frame === "head" ? "head" : "full"];
-    return '<svg class="mascot' + (opts.cls ? ' ' + opts.cls : '') + '" viewBox="' + vb +
+    var head = opts.frame === "head";
+    var vb = D.vb[head ? "head" : "full"];
+    /* Портрет обязан обрезаться рамкой: у svg по умолчанию overflow visible,
+       и у ростовых персонажей ниже головы дорисовывалось всё туловище. */
+    return '<svg class="mascot' + (head ? ' is-head' : '') + (opts.cls ? ' ' + opts.cls : '') + '" viewBox="' + vb +
       '" data-char="' + name + '" data-mood="' + moodName +
       '" role="img" aria-label="' + (opts.label || name) + '">' +
       '<use class="m-body" href="#' + MASCOT.bodyId(name, moodName) + '"/>' +

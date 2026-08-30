@@ -85,15 +85,28 @@ function importCharacter(cfg) {
   const dark = ref.filter(s => lum(s.fill) < 90).sort((a, b) => lum(a.fill) - lum(b.fill))[0];
   const headPlate = parts[refKey].body.filter(s => lum(s.fill) > 150).sort((a, b) => b.area - a.area)[0];
 
+  /* Рамка портрета. Считается по самой голове, а не по доле холста:
+     доля холста у ростового персонажа захватывает половину туловища.
+     Сверху рамка обязана вместить всё, что растёт из головы — антенну
+     Байта, пучок Нины, волосы Саныча, — иначе после обрезки они
+     срезаются. Снизу заканчивается чуть ниже подбородка. */
   const hx = (eyeGeom[0].cx + eyeGeom[1].cx) / 2;
-  const hs = Math.round(vh * 0.62);
+  const plateBB = headPlate ? headPlate.bb : { y0: 0, y1: vh, cx: hx, w: vw };
+  const above = ref.filter(s =>
+    s.bb.y1 <= plateBB.y0 + plateBB.h * 0.55 &&                 /* начинается не ниже середины головы */
+    s.bb.x1 > plateBB.cx - plateBB.w * 0.75 &&                  /* и стоит над ней, а не сбоку */
+    s.bb.x0 < plateBB.cx + plateBB.w * 0.75);
+  const headTop = Math.min(plateBB.y0, ...above.map(s => s.bb.y0));
+  const headBot = plateBB.y1 + vh * 0.015;
+  const hs = Math.round(Math.max(headBot - headTop, plateBB.w * 1.05));
+  const slack = hs - (headBot - headTop);
 
   return {
     defs,
     data: {
       vb: {
         full: viewBox,
-        head: [Math.round(hx - hs / 2), Math.round(eyeGeom[0].cy - hs * 0.56), hs, hs].join(' ')
+        head: [Math.round(plateBB.cx - hs / 2), Math.round(headTop - slack / 2), hs, hs].join(' ')
       },
       eyes: eyeGeom, brows: browGeom,
       mouth: mouthShape ? g(mouthShape.bb) : null,

@@ -360,6 +360,8 @@ pre.code{
 
 /* ---------- персонажи: движение ---------- */
 .mascot{display:block; overflow:visible; transform-origin:50% 88%}
+/* портрет обрезается рамкой головы, иначе ниже неё рисуется туловище */
+.mascot.is-head{overflow:hidden}
 @keyframes m-pop{0%{transform:scale(1)}28%{transform:scale(1.13) translateY(-6px)}56%{transform:scale(.97) translateY(2px)}100%{transform:scale(1)}}
 @keyframes m-shake{0%,100%{transform:translateX(0) rotate(0)}15%{transform:translateX(-7px) rotate(-3deg)}32%{transform:translateX(7px) rotate(3deg)}50%{transform:translateX(-5px) rotate(-2deg)}68%{transform:translateX(5px) rotate(2deg)}85%{transform:translateX(-2px)}}
 @keyframes m-hop{0%,100%{transform:translateY(0) scaleY(1)}22%{transform:translateY(-13px) scaleY(1.04)}44%{transform:translateY(0) scaleY(.95)}66%{transform:translateY(-7px) scaleY(1.02)}88%{transform:translateY(0) scaleY(.98)}}
