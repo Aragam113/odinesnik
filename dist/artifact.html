@@ -7164,7 +7164,7 @@ var TABS = [
 function renderHUD(){
   var hp = hearts();
   $("#hud").innerHTML = '<div class="hud-in">'+
-    '<div class="brand">'+MASCOT.render("byte",{mood:"idle",cls:"idle-bob"})+'<b>Тренажёр <span>одинэсника</span></b></div>'+
+    '<div class="brand">'+MASCOT.render("byte",{mood:"idle",cls:"idle-bob"})+'<b>Один<span>эсник</span></b></div>'+
     '<span class="chip-stat fire'+((S.streak||0)>0?"":" dim")+'">'+ICON.flame+(S.streak||1)+'</span>'+
     '<span class="chip-stat xp">'+ICON.bolt+(S.xp||0)+'</span>'+
     (S.noHearts ? '<span class="chip-stat hp inf">∞</span>'
