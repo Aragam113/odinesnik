@@ -91,8 +91,9 @@ function exChoose(key, q, code, options, correctIdx, why, hint){
 /* Готовые банки (QUIZ, PHRASES, CLOZE) хранят верный ответ первым.
    Без перемешивания он всегда оказывался на позиции 0 — задание решалось
    без чтения. Здесь варианты тасуются и индекс верного пересчитывается. */
-function exFromBank(key, q, code, texts, correctIdx, why, hint, rnd){
-  var opts = shuffle(texts.map(function(t, i){ return {t:t, c: i === correctIdx ? 1 : 0}; }), rnd);
+function exFromBank(key, q, code, texts, correctIdx, why, hint, rnd, notes){
+  /* пояснение к варианту едет вместе с ним через перемешивание */
+  var opts = shuffle(texts.map(function(t, i){ return {t:t, c: i === correctIdx ? 1 : 0, n: notes ? (notes[i] || "") : ""}; }), rnd);
   var a = 0;
   for(var i = 0; i < opts.length; i++) if(opts[i].c) a = i;
   return {k:key, type:"choose", q:q, code:code||"", o:opts, a:a, w:why, hint:hint||""};
@@ -111,17 +112,17 @@ function genFromCard(card, pool, variant, rnd){
     d = pick(named, 3, rnd);
   }
   if(variant === 0){
-    var opts = shuffle([{t:clipClause(card.d,110,150), c:1}].concat(d.map(function(x){ return {t:clipClause(x.d,110,150), c:0}; })), rnd);
+    var opts = shuffle([{t:clipClause(card.d,110,150), c:1, s:card.t}].concat(d.map(function(x){ return {t:clipClause(x.d,110,150), c:0, s:x.t}; })), rnd);
     return exChoose("c0|"+card.t, "Что такое «" + card.t + "»?", "", opts, opts.findIndex(function(o){return o.c;}), card.live, card.tr);
   }
   if(variant === 1){
-    var opts1 = shuffle([{t:card.t, c:1}].concat(d.map(function(x){ return {t:x.t, c:0}; })), rnd);
+    var opts1 = shuffle([{t:card.t, c:1, s:card.t}].concat(d.map(function(x){ return {t:x.t, c:0, s:x.t}; })), rnd);
     return exChoose("c1|"+card.t, "Как это называется?", "", opts1, opts1.findIndex(function(o){return o.c;}), card.t + " — " + card.d, clipClause(card.d, 120, 165));
   }
   if(variant === 2){
     var phrase = maskTerm(card.ex, card);
     if(phrase){
-      var opts2 = shuffle([{t:card.t, c:1}].concat(d.map(function(x){ return {t:x.t, c:0}; })), rnd);
+      var opts2 = shuffle([{t:card.t, c:1, s:card.t}].concat(d.map(function(x){ return {t:x.t, c:0, s:x.t}; })), rnd);
       return exChoose("c2|"+card.t, "О чём речь в этой фразе?", "", opts2, opts2.findIndex(function(o){return o.c;}), card.t + " — " + card.d, phrase);
     }
     variant = 3;                       /* фраза без термина не остаётся — берём другой вопрос */
@@ -133,11 +134,11 @@ function genFromCard(card, pool, variant, rnd){
      памяти, а не по знанию. */
   var withFact = d.filter(function(x){ return x.fact; });
   if(card.fact && withFact.length >= 3){
-    var opts3 = shuffle([{t:card.fact, c:1}].concat(withFact.slice(0, 3).map(function(x){ return {t:x.fact, c:0}; })), rnd);
+    var opts3 = shuffle([{t:card.fact, c:1, s:card.t}].concat(withFact.slice(0, 3).map(function(x){ return {t:x.fact, c:0, s:x.t}; })), rnd);
     return exChoose("c3|"+card.t, "Что из этого верно про «" + card.t + "»?", "", opts3,
       opts3.findIndex(function(o){return o.c;}), card.d + (card.live ? " " + card.live : ""), card.tr);
   }
-  var optsD = shuffle([{t:clipClause(card.d, 110, 150), c:1}].concat(d.map(function(x){ return {t:clipClause(x.d, 110, 150), c:0}; })), rnd);
+  var optsD = shuffle([{t:clipClause(card.d, 110, 150), c:1, s:card.t}].concat(d.map(function(x){ return {t:clipClause(x.d, 110, 150), c:0, s:x.t}; })), rnd);
   return exChoose("c0|"+card.t, "Что такое «" + card.t + "»?", "", optsD,
     optsD.findIndex(function(o){return o.c;}), card.live, card.tr);
 }
@@ -159,13 +160,13 @@ function genBuild(b){
 
 /* --- готовые задачи и фразы --- */
 function genQuiz(q, i, rnd){
-  return exFromBank("q|"+i, q.q, q.code||"", q.o, q.a, q.w, "", rnd);
+  return exFromBank("q|"+i, q.q, q.code||"", q.o, q.a, q.w, "", rnd, q.on);
 }
 function genPhrase(p, i, rnd){
-  return exFromBank("p|"+i, "Что имеет в виду собеседник?", "", p.o, p.a, p.w, p.p, rnd);
+  return exFromBank("p|"+i, "Что имеет в виду собеседник?", "", p.o, p.a, p.w, p.p, rnd, p.on);
 }
 function genCloze(c, i, rnd){
-  return exFromBank("z|"+i, c.q, c.code, c.o, c.a, c.w, "", rnd);
+  return exFromBank("z|"+i, c.q, c.code, c.o, c.a, c.w, "", rnd, c.on);
 }
 /* вопрос с реального собеседования как задание «расскажи вслух» */
 function genIvRecall(q, i){

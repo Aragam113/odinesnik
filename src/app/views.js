@@ -136,7 +136,10 @@ function vLesson(){
           '<div class="fb-txt"><b>'+(LS.correct ? praise() : (e.type==="recall" ? "Эталонный ответ" : "Не так")) +'</b>'+
           '<span>'+(LS.buildHint ? '<b>'+esc(LS.buildHint)+'</b> ' : '')+esc(e.w)+'</span></div>'+
         '</div>'+
-        '<button class="btn '+(LS.correct?"ok":"no")+'" data-next="1">Дальше</button>'+
+        '<div class="fb-btns">'+
+          '<button class="btn ghost" data-explain="1">Почему так</button>'+
+          '<button class="btn '+(LS.correct?"ok":"no")+'" data-next="1">Дальше</button>'+
+        '</div>'+
       '</div></div>';
   } else {
     bar = '<div class="fb idle"><div class="fb-in">'+

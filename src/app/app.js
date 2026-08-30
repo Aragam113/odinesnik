@@ -173,11 +173,13 @@ function render(){
   var lesson = $("#lesson"), main = $("#main"), hud = $("#hud"), tabs = $("#tabs");
   if(screen === "lesson" || screen === "done" || screen === "failed" || screen === "nohearts" ||
      screen === "iv" || screen === "ivdone"){
+    var extra = exModal ? vExplain() : "";
     lesson.innerHTML = screen === "lesson" ? vLesson()
                      : screen === "done" ? vDone()
                      : screen === "iv" ? vIvSession()
                      : screen === "ivdone" ? vIvDone()
                      : screen === "failed" ? vFailed() : vNoHearts();
+    lesson.innerHTML += extra;
     lesson.classList.remove("hidden");
     main.classList.add("hidden"); hud.classList.add("hidden"); tabs.classList.add("hidden");
     RIG.scan();
@@ -197,7 +199,7 @@ function render(){
 
 /* ---------- СОБЫТИЯ ---------- */
 document.addEventListener("click", function(e){
-  var t = e.target.closest("button, a, [data-dianode]");
+  var t = e.target.closest("button, a, [data-dianode], [data-exclose]");
   if(!t) return;
   var A = function(n){ return t.getAttribute(n); };
 
@@ -205,6 +207,9 @@ document.addEventListener("click", function(e){
   if(A("data-lesson") !== null && A("data-lesson") !== undefined){ startLesson(+A("data-lesson")); return; }
   if(A("data-quit")){ if(confirm("Не бросай на середине — прогресс этого подхода не сохранится. Точно выйти?")){ screen = "path"; LS = null; render(); } return; }
   if(A("data-check")){ checkAnswer(); return; }
+  /* ---- разбор задания ---- */
+  if(A("data-explain")){ exModal = currentEx(); render(); return; }
+  if(A("data-exclose")){ exModal = null; render(); return; }
   if(A("data-next")){ nextEx(); return; }
   if(A("data-skip")){ LS.pick = null; LS.checked = true; LS.correct = false;
     var ce = currentEx();
@@ -296,6 +301,9 @@ document.addEventListener("click", function(e){
 
 document.addEventListener("keydown", function(e){
   if(e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+  if(e.key === "Escape" && exModal){ exModal = null; render(); return; }
+  if(exModal) return;                    /* пока открыт разбор, урок клавиши не слушает */
 
   /* узлы схемы — это <g> с role="button": пробел и ввод должны их открывать */
   if((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest("[data-dianode]")){

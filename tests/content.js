@@ -107,3 +107,27 @@ const rnd = G.seed('проверка');
 
 console.log('\n=== ИТОГ ===');
 console.log(problems ? 'ЗАМЕЧАНИЙ: ' + problems : 'Замечаний нет.');
+
+/* ---------- РАЗБОР: пояснения к неверным вариантам ----------
+   У заданий из карточек они строятся сами по источнику варианта.
+   У готовых банков должны быть дописаны в данных полем on. */
+console.log('\n=== РАЗБОР ЗАДАНИЙ: пояснения к неверным вариантам ===');
+const EX = new Function(
+  fs.readFileSync(path.join(D, 'exercises.js'), 'utf8') + '\n;\n' +
+  fs.readFileSync(path.join(A, 'build-exercises.js'), 'utf8') +
+  '; return {QUIZ:QUIZ, PHRASES:PHRASES, CLOZE:(typeof CLOZE!=="undefined"?CLOZE:[])};')();
+let covered = 0, total = 0, gaps = [];
+[['QUIZ', EX.QUIZ], ['PHRASES', EX.PHRASES], ['CLOZE', EX.CLOZE]].forEach(([name, bank]) => {
+  let ok = 0;
+  bank.forEach((q, i) => {
+    total++;
+    const need = q.o.map((_, j) => j).filter(j => j !== q.a);
+    const has = q.on && need.every(j => q.on[j] && String(q.on[j]).length > 20);
+    if (has) { ok++; covered++; } else gaps.push(name + '[' + i + ']');
+  });
+  console.log('  ' + name + ': ' + ok + ' из ' + bank.length);
+});
+console.log('  всего покрыто: ' + covered + ' из ' + total +
+            ' (' + Math.round(covered / total * 100) + '%)');
+if (gaps.length) console.log('  без пояснений: ' + gaps.slice(0, 8).join(', ') +
+                             (gaps.length > 8 ? ' и ещё ' + (gaps.length - 8) : ''));
