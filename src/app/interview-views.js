@@ -17,7 +17,7 @@ function vIvHome(){
     '<div class="tile"><b style="color:var(--ok)">'+(st.best||0)+'%</b><span>лучший результат</span></div>'+
   '</div>'+
 
-  '<div class="card"><div class="speech">'+MASCOT.render("sanych",{mood:"idle",frame:"head"})+
+  '<div class="card"><div class="speech">'+MASCOT.render("sanych",{mood:"idle"})+
     '<div class="bubble">Отвечай <b>вслух и целиком</b>, как перед живым человеком. Молчаливое «ну да, я это знаю» — '+
     'главный самообман: на интервью проверяют не узнавание, а умение объяснить.</div></div></div>'+
 

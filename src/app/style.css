@@ -97,7 +97,7 @@ a{color:var(--info); text-underline-offset:3px}
 }
 .hud-in{max-width:640px; margin:0 auto; display:flex; align-items:center; gap:16px}
 .hud .brand{display:flex; align-items:center; gap:9px; margin-right:auto; min-width:0}
-.hud .brand svg{width:34px; height:34px; flex:none}
+.hud .brand svg{width:32px; height:38px; flex:none}
 .hud .brand b{font-family:Unbounded,sans-serif; font-size:14px; font-weight:700; letter-spacing:-.02em; white-space:nowrap}
 .hud .brand b span{color:var(--brand)}
 @media (max-width:430px){.hud .brand b{display:none}}
@@ -351,7 +351,7 @@ pre.code{
 .chk[aria-pressed="true"] .box{background:var(--ok); border-color:var(--ok); color:#fff}
 .chk[aria-pressed="true"] .txt{color:var(--ink-3); text-decoration:line-through}
 .speech{display:flex; gap:12px; align-items:flex-end}
-.speech svg.mascot{width:76px; height:76px; flex:none}
+.speech svg.mascot{width:64px; height:106px; flex:none}
 .bubble{background:var(--panel); border:2px solid var(--line); border-radius:var(--r); padding:12px 15px; font-size:14.5px; color:var(--ink-2); position:relative; flex:1}
 .bubble::before{content:""; position:absolute; left:-8px; bottom:18px; width:12px; height:12px; background:var(--panel); border-left:2px solid var(--line); border-bottom:2px solid var(--line); transform:rotate(45deg)}
 .empty{text-align:center; padding:40px 16px; color:var(--ink-3); display:flex; flex-direction:column; gap:12px; align-items:center}
