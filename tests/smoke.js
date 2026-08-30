@@ -47,7 +47,11 @@ step('шесть вкладок, включая тренажёр запросо�
   if (!A.q('[data-tab="ql"]')) throw new Error('нет вкладки тренажёра запросов');
 });
 step('путь: 9 разделов', () => { if (A.all('.unit').length !== 9) throw new Error('разделов ' + A.all('.unit').length); });
-step('уроков на пути', () => { const n = A.all('.node').length; if (n < 40) throw new Error('узлов ' + n); });
+step('уроков на пути', () => {
+  /* путь намеренно короче и плотнее: 36 уроков вместо 49 */
+  const n = A.all('.node').length;
+  if (n < 28 || n > 42) throw new Error('узлов ' + n);
+});
 step('открыт только первый узел', () => {
   const open = A.all('.node:not([disabled])').length;
   if (open !== 1) throw new Error('открытых узлов ' + open);
