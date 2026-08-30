@@ -505,3 +505,8 @@ pre.code{
 /* на узком экране в ряду три кнопки — длинную подпись сокращаем */
 .lbl-sm{display:none}
 @media (max-width:620px){ .lbl-lg{display:none} .lbl-sm{display:inline} }
+
+/* схемы внутри теории тренажёра запросов */
+.ql-dia{margin:16px 0 4px; padding-top:14px; border-top:2px solid var(--line)}
+.ql-dia h4{font-size:15px; margin:0 0 4px}
+.ql-dia .dia-say{margin-top:10px}

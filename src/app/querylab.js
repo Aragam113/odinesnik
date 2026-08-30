@@ -58,13 +58,35 @@ function vQL(){
     '<p>Половина работы одинэсника — запросы. Сначала короткая теория, ' +
     'потом четыре вида практики на одном и том же материале.</p></div>';
 
-  /* теория */
+  /* теория; у раздела может быть одна или несколько интерактивных схем */
   h += '<div class="card" style="padding:0 18px">' + QTHEORY.map(function(a){
     var open = qlOpen === a.id;
+    var body = "";
+    if(open){
+      body = a.html;
+      (a.dia || []).forEach(function(d, di){
+        var pre = "ql-" + a.id + "-" + di + "|";
+        var sel = null;
+        if(bookNode && bookNode.indexOf(pre) === 0){
+          var nid = bookNode.slice(pre.length);
+          if(d.say[nid]) sel = nid;
+        }
+        body += '<div class="ql-dia">' +
+          '<h4>' + esc(d.t) + '</h4>' +
+          '<p class="dia-hint">Нажми на любой блок — расскажу, что это и зачем.</p>' +
+          '<div class="dia-wrap">' + bookDiagram(d, sel, pre) + '</div>' +
+          '<div class="dia-say' + (sel ? " on" : "") + '">' +
+            (sel ? '<b>' + esc((d.nodes.filter(function(n){ return n.id === sel; })[0] || {}).t) + '</b>' +
+                   '<p>' + d.say[sel] + '</p>'
+                 : '<p class="muted">Пока ничего не выбрано.</p>') +
+          '</div></div>';
+      });
+      if(a.after) body += a.after;
+    }
     return '<div class="acc-item">' +
       '<button class="acc-btn" data-qlopen="' + a.id + '"><span class="sign">' + (open ? "−" : "+") + '</span>' +
       '<span>' + esc(a.t) + '</span></button>' +
-      (open ? '<div class="acc-body">' + a.html + '</div>' : '') +
+      (open ? '<div class="acc-body">' + body + '</div>' : '') +
     '</div>';
   }).join("") + '</div>';
 
